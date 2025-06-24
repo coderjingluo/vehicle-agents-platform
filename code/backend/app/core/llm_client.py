@@ -1,15 +1,16 @@
 """
 LLM客户端
 统一的大语言模型客户端，支持多种AI模型提供商
+兼容最新版本的LangChain和LangGraph
 """
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, AsyncGenerator
 from enum import Enum
 import json
-from langchain.schema import BaseMessage, HumanMessage, SystemMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage
 from langchain_openai import ChatOpenAI
-from langchain_community.chat_models import ChatAnthropic
+from langchain_anthropic import ChatAnthropic
 
 from .config import settings
 
@@ -56,9 +57,10 @@ class OpenAIClient(BaseLLMClient):
         self.api_key = api_key
         self.api_base = api_base
         self.client = ChatOpenAI(
-            openai_api_key=api_key,
-            openai_api_base=api_base,
-            model_name="gpt-3.5-turbo"
+            api_key=api_key,
+            base_url=api_base,
+            model="gpt-3.5-turbo",
+            temperature=0.7
         )
     
     def _convert_messages(self, messages: List[Dict[str, str]]) -> List[BaseMessage]:
@@ -86,6 +88,7 @@ class OpenAIClient(BaseLLMClient):
         **kwargs
     ) -> str:
         """生成响应"""
+        # 更新客户端配置
         if model:
             self.client.model_name = model
         
@@ -94,8 +97,14 @@ class OpenAIClient(BaseLLMClient):
             self.client.max_tokens = max_tokens
         
         converted_messages = self._convert_messages(messages)
-        response = await self.client.agenerate([converted_messages])
-        return response.generations[0][0].text
+        
+        try:
+            # 使用新版本的调用方式
+            response = await self.client.ainvoke(converted_messages)
+            return response.content
+            
+        except Exception as e:
+            raise Exception(f"OpenAI API调用失败: {str(e)}")
     
     async def generate_stream(
         self,
@@ -114,8 +123,13 @@ class OpenAIClient(BaseLLMClient):
             self.client.max_tokens = max_tokens
         
         converted_messages = self._convert_messages(messages)
-        async for chunk in self.client.astream(converted_messages):
-            yield chunk.content
+        
+        try:
+            async for chunk in self.client.astream(converted_messages):
+                yield chunk.content
+                
+        except Exception as e:
+            yield f"流式响应错误: {str(e)}"
 
 
 class DeepSeekClient(BaseLLMClient):
@@ -125,9 +139,10 @@ class DeepSeekClient(BaseLLMClient):
         self.api_key = api_key
         self.api_base = api_base
         self.client = ChatOpenAI(
-            openai_api_key=api_key,
-            openai_api_base=api_base,
-            model_name="deepseek-chat"
+            api_key=api_key,
+            base_url=api_base,
+            model="deepseek-chat",
+            temperature=0.7
         )
     
     def _convert_messages(self, messages: List[Dict[str, str]]) -> List[BaseMessage]:
@@ -163,8 +178,13 @@ class DeepSeekClient(BaseLLMClient):
             self.client.max_tokens = max_tokens
         
         converted_messages = self._convert_messages(messages)
-        response = await self.client.agenerate([converted_messages])
-        return response.generations[0][0].text
+        
+        try:
+            response = await self.client.ainvoke(converted_messages)
+            return response.content
+            
+        except Exception as e:
+            raise Exception(f"DeepSeek API调用失败: {str(e)}")
     
     async def generate_stream(
         self,
@@ -183,8 +203,13 @@ class DeepSeekClient(BaseLLMClient):
             self.client.max_tokens = max_tokens
         
         converted_messages = self._convert_messages(messages)
-        async for chunk in self.client.astream(converted_messages):
-            yield chunk.content
+        
+        try:
+            async for chunk in self.client.astream(converted_messages):
+                yield chunk.content
+                
+        except Exception as e:
+            yield f"流式响应错误: {str(e)}"
 
 
 class AnthropicClient(BaseLLMClient):
@@ -193,8 +218,9 @@ class AnthropicClient(BaseLLMClient):
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.client = ChatAnthropic(
-            anthropic_api_key=api_key,
-            model_name="claude-3-sonnet-20240229"
+            api_key=api_key,
+            model="claude-3-sonnet-20240229",
+            temperature=0.7
         )
     
     def _convert_messages(self, messages: List[Dict[str, str]]) -> List[BaseMessage]:
@@ -230,8 +256,13 @@ class AnthropicClient(BaseLLMClient):
             self.client.max_tokens = max_tokens
         
         converted_messages = self._convert_messages(messages)
-        response = await self.client.agenerate([converted_messages])
-        return response.generations[0][0].text
+        
+        try:
+            response = await self.client.ainvoke(converted_messages)
+            return response.content
+            
+        except Exception as e:
+            raise Exception(f"Anthropic API调用失败: {str(e)}")
     
     async def generate_stream(
         self,
@@ -250,8 +281,13 @@ class AnthropicClient(BaseLLMClient):
             self.client.max_tokens = max_tokens
         
         converted_messages = self._convert_messages(messages)
-        async for chunk in self.client.astream(converted_messages):
-            yield chunk.content
+        
+        try:
+            async for chunk in self.client.astream(converted_messages):
+                yield chunk.content
+                
+        except Exception as e:
+            yield f"流式响应错误: {str(e)}"
 
 
 class LLMClientManager:

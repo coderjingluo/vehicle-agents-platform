@@ -242,7 +242,7 @@ Web框架：
 - Redis消息代理
 
 AI集成：
-- LangChain框架
+- LangGraph框架
 - OpenAI API兼容接口
 - 向量数据库集成
 ```

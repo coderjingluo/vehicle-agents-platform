@@ -218,7 +218,7 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 websockets==12.0
-langchain==0.1.0
+langgraph
 openai==1.6.1
 celery==5.3.4
 pytest==7.4.3

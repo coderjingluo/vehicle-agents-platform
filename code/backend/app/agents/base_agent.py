@@ -1,6 +1,6 @@
 """
 基础智能体类
-实现所有智能体的通用能力：任务分解、步骤执行、结果聚合
+实现所有智能体的通用能力：LangGraph工作流集成、工具管理
 """
 
 from abc import ABC, abstractmethod
@@ -10,9 +10,7 @@ from datetime import datetime
 
 from app.core.llm_client import LLMClientManager, get_llm_manager
 from app.core.tool_registry import ToolRegistry, get_tool_registry
-from app.core.task_decomposer import TaskDecomposer
-from app.core.step_executor import StepExecutor
-from app.core.result_aggregator import ResultAggregator
+from app.core.langgraph_workflow import LangGraphWorkflowManager, WorkflowState
 
 
 class AgentStep:
@@ -59,62 +57,65 @@ class AgentStep:
 class AgentPlan:
     """智能体执行计划"""
     
-    def __init__(self, plan_id: str, description: str, steps: List[AgentStep]):
+    def __init__(
+        self,
+        plan_id: str,
+        description: str,
+        steps: List[AgentStep]
+    ):
         self.plan_id = plan_id
         self.description = description
         self.steps = steps
+        self.status = "pending"  # pending, running, completed, failed
         self.created_at = datetime.utcnow()
-        self.status = "pending"  # pending, running, completed, failed, cancelled
+        self.started_at: Optional[datetime] = None
+        self.completed_at: Optional[datetime] = None
+        self.total_steps = len(steps)
+        self.completed_steps = 0
+        self.failed_steps = 0
     
-    def get_step(self, step_id: str) -> Optional[AgentStep]:
-        """获取步骤"""
-        for step in self.steps:
-            if step.step_id == step_id:
-                return step
-        return None
-    
-    def get_ready_steps(self) -> List[AgentStep]:
-        """获取可以执行的步骤"""
-        ready_steps = []
-        completed_step_ids = {step.step_id for step in self.steps if step.status == "completed"}
+    def update_progress(self):
+        """更新进度"""
+        self.completed_steps = sum(1 for step in self.steps if step.status == "completed")
+        self.failed_steps = sum(1 for step in self.steps if step.status == "failed")
         
-        for step in self.steps:
-            if step.status == "pending":
-                # 检查依赖是否都已完成
-                if all(dep_id in completed_step_ids for dep_id in step.dependencies):
-                    ready_steps.append(step)
-        
-        return ready_steps
+        if self.failed_steps > 0:
+            self.status = "failed"
+        elif self.completed_steps == self.total_steps:
+            self.status = "completed"
+            if not self.completed_at:
+                self.completed_at = datetime.utcnow()
+        elif any(step.status == "running" for step in self.steps):
+            self.status = "running"
+            if not self.started_at:
+                self.started_at = datetime.utcnow()
     
-    @property
-    def is_completed(self) -> bool:
-        """判断计划是否完成"""
-        return all(step.status in ["completed", "failed"] for step in self.steps)
-    
-    @property
-    def progress(self) -> float:
-        """计算进度百分比"""
-        if not self.steps:
-            return 0.0
-        
-        completed_steps = sum(1 for step in self.steps if step.status == "completed")
-        return (completed_steps / len(self.steps)) * 100
+    def get_progress_percentage(self) -> float:
+        """获取进度百分比"""
+        if self.total_steps == 0:
+            return 100.0
+        return (self.completed_steps / self.total_steps) * 100.0
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
+        self.update_progress()
         return {
             "plan_id": self.plan_id,
             "description": self.description,
-            "steps": [step.to_dict() for step in self.steps],
-            "created_at": self.created_at.isoformat(),
             "status": self.status,
-            "progress": self.progress,
-            "is_completed": self.is_completed
+            "total_steps": self.total_steps,
+            "completed_steps": self.completed_steps,
+            "failed_steps": self.failed_steps,
+            "progress_percentage": self.get_progress_percentage(),
+            "created_at": self.created_at.isoformat(),
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "steps": [step.to_dict() for step in self.steps]
         }
 
 
 class BaseAgent(ABC):
-    """基础智能体类"""
+    """基础智能体类 - 支持LangGraph工作流"""
     
     def __init__(
         self,
@@ -122,7 +123,8 @@ class BaseAgent(ABC):
         name: str,
         description: str,
         llm_manager: Optional[LLMClientManager] = None,
-        tool_registry: Optional[ToolRegistry] = None
+        tool_registry: Optional[ToolRegistry] = None,
+        workflow_manager: Optional[LangGraphWorkflowManager] = None
     ):
         self.agent_id = agent_id
         self.name = name
@@ -131,15 +133,69 @@ class BaseAgent(ABC):
         # 智能体通用能力组件
         self.llm_manager = llm_manager or get_llm_manager()
         self.tool_registry = tool_registry or get_tool_registry()
-        self.task_decomposer = TaskDecomposer(self.llm_manager)
-        self.step_executor = StepExecutor(self.tool_registry)
-        self.result_aggregator = ResultAggregator(self.llm_manager)
+        
+        # LangGraph工作流管理器
+        self.workflow_manager = workflow_manager or LangGraphWorkflowManager(
+            self.llm_manager, 
+            self.tool_registry
+        )
         
         # 执行状态
         self.current_plan: Optional[AgentPlan] = None
         self.execution_history: List[AgentPlan] = []
+        
+        # 注册自己到工作流管理器
+        self._register_to_workflow()
     
-    async def generate_plan(self, user_request: str, context: Optional[Dict[str, Any]] = None) -> AgentPlan:
+    def _register_to_workflow(self):
+        """注册到工作流管理器"""
+        agent_type = self.get_agent_type()
+        self.workflow_manager.register_agent_callback(agent_type, self._workflow_callback)
+    
+    async def _workflow_callback(self, state: WorkflowState) -> Dict[str, Any]:
+        """工作流回调 - 被LangGraph调用"""
+        try:
+            # 从工作流状态中提取上下文
+            context = {
+                "workflow_id": state["workflow_id"],
+                "user_request": state["user_request"],
+                "messages": state["messages"],
+                "context": state["context"]
+            }
+            
+            # 根据智能体类型获取相关的前置结果
+            if self.get_agent_type() == "test_case" and state.get("tara_result"):
+                context["tara_result"] = state["tara_result"]
+            elif self.get_agent_type() == "automation" and state.get("test_case_result"):
+                context["test_case_result"] = state["test_case_result"]
+            elif self.get_agent_type() == "report":
+                context["tara_result"] = state.get("tara_result")
+                context["test_case_result"] = state.get("test_case_result")
+                context["automation_result"] = state.get("automation_result")
+            elif self.get_agent_type() == "knowledge":
+                context["all_results"] = {
+                    "tara": state.get("tara_result"),
+                    "test_case": state.get("test_case_result"),
+                    "automation": state.get("automation_result"),
+                    "report": state.get("report_result")
+                }
+            
+            # 执行具体的智能体逻辑
+            result = await self.execute(
+                user_request=state["user_request"],
+                context=context
+            )
+            
+            return result
+            
+        except Exception as e:
+            return {
+                "error": str(e),
+                "status": "failed",
+                "agent_id": self.agent_id
+            }
+    
+    async def generate_llm_plan(self, user_request: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """基于大模型生成执行计划"""
         
         # 构建系统提示词
@@ -156,108 +212,70 @@ class BaseAgent(ABC):
         # 调用LLM生成计划
         response = await self.llm_manager.generate_response(messages)
         
-        # 解析计划
-        plan = await self.task_decomposer.decompose(response, self.get_available_tools())
-        
-        self.current_plan = plan
-        return plan
-    
-    async def execute_plan(self, plan: AgentPlan) -> Dict[str, Any]:
-        """执行计划"""
-        plan.status = "running"
-        results = []
-        
         try:
-            while not plan.is_completed:
-                # 获取可以执行的步骤
-                ready_steps = plan.get_ready_steps()
-                
-                if not ready_steps:
-                    # 没有可执行的步骤，检查是否有失败的步骤
-                    failed_steps = [step for step in plan.steps if step.status == "failed"]
-                    if failed_steps:
-                        raise Exception(f"执行失败: {failed_steps[0].error}")
-                    break
-                
-                # 并行执行准备好的步骤
-                for step in ready_steps:
-                    step_result = await self.step_executor.execute(step)
-                    results.append(step_result)
-            
-            # 聚合结果
-            final_result = await self.result_aggregator.aggregate(results)
-            plan.status = "completed"
-            
-            return final_result
-            
-        except Exception as e:
-            plan.status = "failed"
-            raise e
-        finally:
-            self.execution_history.append(plan)
+            # 尝试解析JSON响应
+            plan_data = json.loads(response.strip())
+            return {
+                "success": True,
+                "plan": plan_data,
+                "raw_response": response
+            }
+        except json.JSONDecodeError:
+            # 如果不是JSON，返回原始响应
+            return {
+                "success": False,
+                "plan": None,
+                "raw_response": response,
+                "error": "LLM响应不是有效的JSON格式"
+            }
     
-    async def process(self, user_request: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """通用处理流程：生成计划 -> 执行计划 -> 返回结果"""
-        
-        # 生成执行计划
-        plan = await self.generate_plan(user_request, context)
-        
-        # 执行计划
-        result = await self.execute_plan(plan)
-        
-        # 调用专业化处理逻辑
-        specialized_result = await self.execute(user_request, context, result)
-        
-        return specialized_result
+    async def execute_with_workflow(
+        self,
+        user_request: str,
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """使用LangGraph工作流执行"""
+        return await self.workflow_manager.execute_workflow(
+            user_request=user_request,
+            context=context
+        )
     
-    async def stream_process(
+    async def execute_stream(
         self,
         user_request: str,
         context: Optional[Dict[str, Any]] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        """流式处理"""
+        """流式执行 - 实时返回执行状态"""
         
         # 生成计划
-        yield {"type": "planning", "message": "正在生成执行计划..."}
-        plan = await self.generate_plan(user_request, context)
-        yield {"type": "plan", "data": plan.to_dict()}
+        plan_result = await self.generate_llm_plan(user_request, context)
+        
+        yield {
+            "type": "plan_generated",
+            "data": plan_result
+        }
+        
+        if not plan_result["success"]:
+            yield {
+                "type": "error",
+                "data": {"error": "计划生成失败", "details": plan_result}
+            }
+            return
         
         # 执行计划
-        plan.status = "running"
-        results = []
-        
         try:
-            while not plan.is_completed:
-                ready_steps = plan.get_ready_steps()
-                
-                if not ready_steps:
-                    break
-                
-                for step in ready_steps:
-                    yield {"type": "step_start", "step": step.to_dict()}
-                    
-                    step_result = await self.step_executor.execute(step)
-                    results.append(step_result)
-                    
-                    yield {"type": "step_complete", "step": step.to_dict(), "result": step_result}
-                    yield {"type": "progress", "progress": plan.progress}
+            result = await self.execute(user_request, context, plan_result["plan"])
             
-            # 聚合结果
-            yield {"type": "aggregating", "message": "正在聚合结果..."}
-            final_result = await self.result_aggregator.aggregate(results)
-            
-            # 专业化处理
-            yield {"type": "specializing", "message": "正在进行专业化处理..."}
-            specialized_result = await self.execute(user_request, context, final_result)
-            
-            plan.status = "completed"
-            yield {"type": "completed", "result": specialized_result}
+            yield {
+                "type": "execution_completed",
+                "data": result
+            }
             
         except Exception as e:
-            plan.status = "failed"
-            yield {"type": "error", "error": str(e)}
-        finally:
-            self.execution_history.append(plan)
+            yield {
+                "type": "error",
+                "data": {"error": str(e)}
+            }
     
     def _build_system_prompt(self) -> str:
         """构建系统提示词"""
@@ -269,9 +287,13 @@ class BaseAgent(ABC):
 可用工具:
 {self._get_tools_description()}
 
-你的任务是分析用户请求，制定详细的执行计划。计划应该包含具体的步骤，每个步骤都要指定使用的工具和参数。
+你的任务是分析用户请求，制定详细的执行计划或直接处理请求。
 
-请以JSON格式返回执行计划，格式如下：
+请根据请求的复杂度选择合适的回复方式：
+1. 对于复杂任务：返回JSON格式的执行计划
+2. 对于简单任务：直接返回处理结果
+
+JSON计划格式：
 {{
     "plan_id": "唯一计划ID",
     "description": "计划描述",
@@ -321,9 +343,11 @@ class BaseAgent(ABC):
             "agent_id": self.agent_id,
             "name": self.name,
             "description": self.description,
+            "agent_type": self.get_agent_type(),
             "current_plan": self.current_plan.to_dict() if self.current_plan else None,
             "execution_history_count": len(self.execution_history),
-            "available_tools_count": len(self.get_available_tools())
+            "available_tools_count": len(self.get_available_tools()),
+            "workflow_registered": self.get_agent_type() in self.workflow_manager.agent_callbacks
         }
     
     @abstractmethod
@@ -338,5 +362,5 @@ class BaseAgent(ABC):
     
     @abstractmethod
     def get_agent_type(self) -> str:
-        """获取智能体类型"""
+        """获取智能体类型（用于工作流注册）"""
         pass 

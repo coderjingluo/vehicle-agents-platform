@@ -111,6 +111,34 @@ class Settings(BaseSettings):
     # MCP工具配置
     mcp_timeout: int = Field(default=30, description="MCP工具调用超时时间(秒)")
     mcp_max_retries: int = Field(default=3, description="MCP工具最大重试次数")
+    
+    # Phase 4: 扩展配置
+    # 文档处理配置
+    UPLOAD_DIR: str = Field(default="./uploads", description="文件上传目录")
+    MAX_FILE_SIZE: int = Field(default=50 * 1024 * 1024, description="最大文件大小(50MB)")
+    SUPPORTED_FILE_TYPES: List[str] = Field(
+        default=["pdf", "docx", "txt", "md", "html", "json", "xml"],
+        description="支持的文件类型"
+    )
+    
+    # 向量数据库配置
+    CHROMA_PERSIST_DIRECTORY: str = Field(default="./chroma_db", description="Chroma持久化目录")
+    CHROMA_HOST: str = Field(default="localhost", description="Chroma主机")
+    CHROMA_PORT: int = Field(default=8001, description="Chroma端口")
+    
+    # 模型配置加密
+    ENCRYPTION_KEY: str = Field(
+        default="your-encryption-key-here-32-chars-long",
+        description="API密钥加密密钥(32字符)"
+    )
+    
+    # 批处理配置
+    BATCH_SIZE: int = Field(default=100, description="批处理大小")
+    MAX_CONCURRENT_TASKS: int = Field(default=10, description="最大并发任务数")
+    
+    # 缓存配置
+    CACHE_TTL: int = Field(default=3600, description="缓存过期时间(秒)")
+    ENABLE_CACHE: bool = Field(default=True, description="启用缓存")
 
 
 # 全局配置实例
