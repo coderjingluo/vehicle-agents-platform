@@ -7,12 +7,12 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 // API基础配置
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
-const WEBSOCKET_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+export const WEBSOCKET_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000/ws'
 
 // 创建axios实例
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: BASE_URL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -67,7 +67,7 @@ apiClient.interceptors.response.use(
 )
 
 // 导出API客户端和URL配置
-export { apiClient, API_BASE_URL, WEBSOCKET_URL }
+export { apiClient, BASE_URL }
 
 // 导出具体API模块
 export { default as systemAPI } from './modules/system'

@@ -93,10 +93,10 @@ FastAPI App
 ## 2. 前端架构设计
 
 ### 2.1 Vue.js 3 应用架构
-```typescript
+```javascript
 // 前端架构层次
 src/
-├── main.ts                 # 应用入口
+├── main.js                 # 应用入口
 ├── App.vue                 # 根组件
 ├── components/             # 组件层
 │   ├── layout/            # 布局组件
@@ -117,29 +117,29 @@ src/
 │   ├── KnowledgeBase.vue
 │   └── Settings.vue
 ├── stores/                # 状态管理 (Pinia)
-│   ├── auth.ts
-│   ├── task.ts
-│   ├── knowledge.ts
-│   └── websocket.ts
+│   ├── auth.js
+│   ├── task.js
+│   ├── knowledge.js
+│   └── websocket.js
 ├── composables/           # 组合式函数
-│   ├── useAPI.ts
-│   ├── useWebSocket.ts
-│   └── useAuth.ts
+│   ├── useAPI.js
+│   ├── useWebSocket.js
+│   └── useAuth.js
 ├── router/                # 路由配置
-│   └── index.ts
+│   └── index.js
 ├── utils/                 # 工具函数
-│   ├── http.ts
-│   ├── websocket.ts
-│   └── helpers.ts
-└── types/                 # TypeScript类型
-    ├── api.ts
-    ├── task.ts
-    └── user.ts
+│   ├── http.js
+│   ├── websocket.js
+│   └── helpers.js
+└── types/                 # JavaScript类型
+    ├── api.js
+    ├── task.js
+    └── user.js
 ```
 
 ### 2.2 状态管理设计
 ```typescript
-// stores/auth.ts - 认证状态管理
+// stores/auth.js - 认证状态管理
 import { defineStore } from 'pinia'
 
 export const useAuthStore = defineStore('auth', {
@@ -174,7 +174,7 @@ export const useAuthStore = defineStore('auth', {
 
 ### 2.3 组合式函数设计
 ```typescript
-// composables/useWebSocket.ts
+// composables/useWebSocket.js
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 export function useWebSocket(url: string) {

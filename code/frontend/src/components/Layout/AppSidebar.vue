@@ -1,545 +1,611 @@
 <template>
-  <div class="sidebar-layout">
-    <!-- 品牌区域 -->
-    <div class="brand-section">
-      <div class="brand-content" :class="{ collapsed: isCollapsed }">
-        <div class="brand-logo">
-          <div class="logo-icon">
-            <svg viewBox="0 0 24 24" width="28" height="28">
-              <path fill="currentColor" d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z"/>
-            </svg>
-          </div>
-          <transition name="brand-fade">
-            <div v-show="!isCollapsed" class="brand-text">
-              <h1 class="brand-title">TARA</h1>
-              <p class="brand-subtitle">车联网安全测试平台</p>
-            </div>
-          </transition>
-        </div>
+  <el-aside 
+    :width="sidebarWidth"
+    class="app-sidebar"
+    :class="sidebarClasses"
+  >
+    <!-- 侧边栏头部 -->
+    <div class="sidebar-header">
+      <div v-if="!appStore.sidebarCollapsed" class="logo-section">
+        <img src="/vite.svg" alt="Logo" class="logo-icon">
+        <h1 class="logo-text">车联网安全平台</h1>
       </div>
+      <el-icon 
+        v-else 
+        class="logo-icon-collapsed"
+        @click="appStore.toggleSidebar"
+      >
+        <Menu />
+      </el-icon>
     </div>
 
-    <!-- 导航菜单 -->
-    <div class="navigation-section">
-      <nav class="nav-menu">
-        <!-- 主要导航 -->
-        <div class="nav-group">
-          <div v-if="!isCollapsed" class="nav-group-title">主要功能</div>
-          
-          <!-- 仪表板 -->
-          <router-link to="/dashboard" class="nav-item" :class="{ active: isActive('/dashboard') }">
-            <div class="nav-item-content">
-              <div class="nav-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="currentColor" d="M3,2H21A1,1 0 0,1 22,3V21A1,1 0 0,1 21,22H3A1,1 0 0,1 2,21V3A1,1 0 0,1 3,2M13,4V12L21,4M13,20V14H21V20M11,20V4H4V20"/>
-                </svg>
-              </div>
-              <transition name="nav-fade">
-                <span v-show="!isCollapsed" class="nav-text">仪表板</span>
-              </transition>
-            </div>
-          </router-link>
-
-          <!-- 工作流管理 -->
-          <router-link to="/workflow" class="nav-item" :class="{ active: isActive('/workflow') }">
-            <div class="nav-item-content">
-              <div class="nav-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="currentColor" d="M12,2A2,2 0 0,1 14,4C14,5.5 13,6.76 11.65,6.95C11.87,7.31 12,7.72 12,8.15V11.85C12,12.28 11.87,12.69 11.65,13.05C13,13.24 14,14.5 14,16C14,17.66 12.66,19 11,19S8,17.66 8,16C8,14.5 9,13.24 10.35,13.05C10.13,12.69 10,12.28 10,11.85V8.15C10,7.72 10.13,7.31 10.35,6.95C9,6.76 8,5.5 8,4A2,2 0 0,1 10,2A2,2 0 0,1 12,2Z"/>
-                </svg>
-              </div>
-              <transition name="nav-fade">
-                <span v-show="!isCollapsed" class="nav-text">工作流管理</span>
-              </transition>
-            </div>
-          </router-link>
+    <!-- 系统状态指示器 -->
+    <div v-if="!appStore.sidebarCollapsed" class="system-status">
+      <el-tooltip :content="systemStatusText" placement="right">
+        <div class="status-indicator" :class="systemStatusClass">
+          <el-icon><CircleCheckFilled v-if="isSystemHealthy" /><WarningFilled v-else /></el-icon>
+          <span v-if="!appStore.sidebarCollapsed">{{ systemStatusText }}</span>
         </div>
-
-        <!-- 智能体模块 -->
-        <div class="nav-group">
-          <div v-if="!isCollapsed" class="nav-group-title">智能体模块</div>
-          
-          <!-- TARA智能体 -->
-          <router-link to="/agents/tara" class="nav-item" :class="{ active: isActive('/agents/tara') }">
-            <div class="nav-item-content">
-              <div class="nav-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="currentColor" d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,3.18L19,6.3V11.22C19,15.54 16.19,19.52 12,20.5C7.81,19.52 5,15.54 5,11.22V6.3L12,3.18M11,7V13H13V7H11M11,15V17H13V15H11Z"/>
-                </svg>
-              </div>
-              <transition name="nav-fade">
-                <span v-show="!isCollapsed" class="nav-text">TARA智能体</span>
-              </transition>
-            </div>
-          </router-link>
-
-          <!-- 测试用例智能体 -->
-          <router-link to="/agents/testcase" class="nav-item" :class="{ active: isActive('/agents/testcase') }">
-            <div class="nav-item-content">
-              <div class="nav-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                </svg>
-              </div>
-              <transition name="nav-fade">
-                <span v-show="!isCollapsed" class="nav-text">测试用例智能体</span>
-              </transition>
-            </div>
-          </router-link>
-
-          <!-- 自动化测试智能体 -->
-          <router-link to="/agents/automation" class="nav-item" :class="{ active: isActive('/agents/automation') }">
-            <div class="nav-item-content">
-              <div class="nav-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
-                </svg>
-              </div>
-              <transition name="nav-fade">
-                <span v-show="!isCollapsed" class="nav-text">自动化测试</span>
-              </transition>
-            </div>
-          </router-link>
-
-          <!-- 报告分析智能体 -->
-          <router-link to="/agents/report" class="nav-item" :class="{ active: isActive('/agents/report') }">
-            <div class="nav-item-content">
-              <div class="nav-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                </svg>
-              </div>
-              <transition name="nav-fade">
-                <span v-show="!isCollapsed" class="nav-text">报告分析</span>
-              </transition>
-            </div>
-          </router-link>
-
-          <!-- 知识管理智能体 -->
-          <router-link to="/agents/knowledge" class="nav-item" :class="{ active: isActive('/agents/knowledge') }">
-            <div class="nav-item-content">
-              <div class="nav-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="currentColor" d="M5,3H7V5H5V10A2,2 0 0,1 3,8V5A2,2 0 0,1 5,3M19,3A2,2 0 0,1 21,5V8A2,2 0 0,1 19,10V5H17V3H19M16,19H8V21H16V19M12,2A1,1 0 0,1 13,3V5H11V3A1,1 0 0,1 12,2Z"/>
-                </svg>
-              </div>
-              <transition name="nav-fade">
-                <span v-show="!isCollapsed" class="nav-text">知识管理</span>
-              </transition>
-            </div>
-          </router-link>
-        </div>
-
-        <!-- 系统管理 -->
-        <div class="nav-group">
-          <div v-if="!isCollapsed" class="nav-group-title">系统管理</div>
-          
-          <!-- 知识库 -->
-          <router-link to="/knowledge" class="nav-item" :class="{ active: isActive('/knowledge') }">
-            <div class="nav-item-content">
-              <div class="nav-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="currentColor" d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"/>
-                </svg>
-              </div>
-              <transition name="nav-fade">
-                <span v-show="!isCollapsed" class="nav-text">知识库</span>
-              </transition>
-            </div>
-          </router-link>
-
-          <!-- 模型配置 -->
-          <router-link to="/models" class="nav-item" :class="{ active: isActive('/models') }">
-            <div class="nav-item-content">
-              <div class="nav-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="currentColor" d="M17,17H7V7H17M21,11V9H19V7C19,5.89 18.1,5 17,5H15V3H13V5H11V3H9V5H7C5.89,5 5,5.89 5,7V9H3V11H5V13H3V15H5V17C5,18.1 5.89,19 7,19H9V21H11V19H13V21H15V19H17C18.1,19 19,18.1 19,17V15H21V13H19V11M17,15H7V9H17V15Z"/>
-                </svg>
-              </div>
-              <transition name="nav-fade">
-                <span v-show="!isCollapsed" class="nav-text">模型配置</span>
-              </transition>
-            </div>
-          </router-link>
-
-          <!-- 系统设置 -->
-          <router-link to="/settings" class="nav-item" :class="{ active: isActive('/settings') }">
-            <div class="nav-item-content">
-              <div class="nav-icon">
-                <svg viewBox="0 0 24 24" width="20" height="20">
-                  <path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
-                </svg>
-              </div>
-              <transition name="nav-fade">
-                <span v-show="!isCollapsed" class="nav-text">系统设置</span>
-              </transition>
-            </div>
-          </router-link>
-        </div>
-      </nav>
+      </el-tooltip>
     </div>
 
-    <!-- 底部状态栏 -->
-    <div class="status-section">
-      <!-- 系统状态 -->
-      <div class="status-indicator" :class="{ collapsed: isCollapsed }">
-        <div class="status-content">
-          <div class="status-dot" :class="statusClass"></div>
-          <transition name="status-fade">
-            <div v-show="!isCollapsed" class="status-info">
-              <span class="status-text">{{ statusText }}</span>
-              <span class="status-version">v{{ appStore.systemInfo.version }}</span>
-            </div>
-          </transition>
-        </div>
-      </div>
+    <!-- 主导航菜单 -->
+    <el-scrollbar class="sidebar-menu-wrapper">
+      <el-menu
+        :default-active="activeMenu"
+        :collapse="appStore.sidebarCollapsed"
+        :unique-opened="true"
+        router
+        class="sidebar-menu"
+      >
+        <!-- 系统功能 -->
+        <el-menu-item index="/dashboard">
+          <el-icon><Odometer /></el-icon>
+          <template #title>系统概览</template>
+        </el-menu-item>
 
+        <el-menu-item index="/workflow">
+          <el-icon><Share /></el-icon>
+          <template #title>工作流管理</template>
+        </el-menu-item>
+
+        <!-- 智能体分组 -->
+        <el-sub-menu index="agents" v-if="!appStore.sidebarCollapsed">
+          <template #title>
+            <el-icon><Cpu /></el-icon>
+            <span>智能体</span>
+          </template>
+          
+          <el-menu-item 
+            v-for="agent in agentRoutes" 
+            :key="agent.path"
+            :index="agent.path"
+            class="agent-menu-item"
+          >
+            <el-icon><component :is="iconComponents[agent.meta.icon]" /></el-icon>
+            <template #title>{{ agent.meta.title }}</template>
+            <el-tag 
+              v-if="getAgentStatus(agent.meta.agentType)" 
+              size="small" 
+              :type="getAgentStatusType(agent.meta.agentType)"
+              class="agent-status-tag"
+            >
+              {{ getAgentStatus(agent.meta.agentType) }}
+            </el-tag>
+          </el-menu-item>
+        </el-sub-menu>
+
+        <!-- 折叠状态下的智能体菜单 -->
+        <template v-if="appStore.sidebarCollapsed">
+          <el-menu-item 
+            v-for="agent in agentRoutes" 
+            :key="agent.path"
+            :index="agent.path"
+          >
+            <el-icon><component :is="iconComponents[agent.meta.icon]" /></el-icon>
+            <template #title>{{ agent.meta.title }}</template>
+          </el-menu-item>
+        </template>
+
+        <!-- 工具和管理 -->
+        <el-divider v-if="!appStore.sidebarCollapsed">
+          <span class="divider-text">工具与管理</span>
+        </el-divider>
+
+        <el-menu-item index="/knowledge">
+          <el-icon><Notebook /></el-icon>
+          <template #title>知识库</template>
+        </el-menu-item>
+
+        <el-menu-item index="/models">
+          <el-icon><Setting /></el-icon>
+          <template #title>模型配置</template>
+        </el-menu-item>
+
+        <el-menu-item index="/settings">
+          <el-icon><Tools /></el-icon>
+          <template #title>系统设置</template>
+        </el-menu-item>
+      </el-menu>
+    </el-scrollbar>
+
+    <!-- 侧边栏底部 -->
+    <div class="sidebar-footer">
       <!-- 折叠按钮 -->
-      <button class="collapse-btn" @click="toggleSidebar" :title="collapseTooltip">
-        <div class="collapse-icon" :class="{ rotated: isCollapsed }">
-          <svg viewBox="0 0 24 24" width="16" height="16">
-            <path fill="currentColor" d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z"/>
-          </svg>
+      <el-tooltip 
+        :content="appStore.sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'" 
+        placement="right"
+      >
+        <el-button
+          class="collapse-btn"
+          @click="appStore.toggleSidebar"
+          :icon="appStore.sidebarCollapsed ? Expand : Fold"
+          circle
+          size="small"
+        />
+      </el-tooltip>
+
+      <!-- 工作流进度指示器 -->
+      <div v-if="workflowStore.isExecuting && !appStore.sidebarCollapsed" class="workflow-progress">
+        <div class="progress-info">
+          <span class="progress-text">{{ workflowStore.currentStep }}</span>
+          <span class="progress-percent">{{ workflowStore.executionProgress }}%</span>
         </div>
-      </button>
+        <el-progress 
+          :percentage="workflowStore.executionProgress" 
+          :show-text="false"
+          :stroke-width="4"
+          size="small"
+        />
+      </div>
+
+      <!-- 实时时间 -->
+      <div v-if="!appStore.sidebarCollapsed" class="current-time">
+        {{ currentTime }}
+      </div>
     </div>
-  </div>
+  </el-aside>
 </template>
 
-<script>
-import { computed } from 'vue'
+<script setup>
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '../../stores/app'
+import { useWorkflowStore } from '../../stores/workflow'
+import { getAgentRoutes } from '../../router'
+import {
+  Menu, Odometer, Share, Cpu, Lock, DocumentChecked, 
+  Document, Search, Notebook, Setting, Tools, Expand, 
+  Fold, CircleCheckFilled, WarningFilled
+} from '@element-plus/icons-vue'
 
-export default {
-  name: 'AppSidebar',
-  setup() {
-    const route = useRoute()
-    const appStore = useAppStore()
+// 状态管理
+const appStore = useAppStore()
+const workflowStore = useWorkflowStore()
+const route = useRoute()
 
-    // 计算属性
-    const isCollapsed = computed(() => appStore.ui.sidebarCollapsed)
-    
-    const statusClass = computed(() => ({
-      'status-healthy': appStore.systemInfo.status === 'healthy',
-      'status-warning': appStore.systemInfo.status === 'warning', 
-      'status-error': appStore.systemInfo.status === 'error'
-    }))
+// 响应式数据
+const currentTime = ref('')
+const timeInterval = ref(null)
 
-    const statusText = computed(() => {
-      const statusMap = {
-        'healthy': '系统正常',
-        'warning': '系统警告',
-        'error': '系统异常'
-      }
-      return statusMap[appStore.systemInfo.status] || '未知状态'
-    })
-
-    const collapseTooltip = computed(() => {
-      return isCollapsed.value ? '展开侧边栏' : '收起侧边栏'
-    })
-
-    // 方法
-    const isActive = (path) => {
-      return route.path === path || route.path.startsWith(path + '/')
-    }
-
-    const toggleSidebar = () => {
-      appStore.toggleSidebar()
-    }
-
-    return {
-      route,
-      appStore,
-      isCollapsed,
-      statusClass,
-      statusText,
-      collapseTooltip,
-      isActive,
-      toggleSidebar
-    }
-  }
+// 图标映射
+const iconComponents = {
+  Lock,
+  DocumentChecked,
+  Cpu,
+  Document,
+  Search
 }
+
+// 计算属性
+const sidebarWidth = computed(() => appStore.sidebarCollapsed ? '64px' : '240px')
+
+const sidebarClasses = computed(() => ({
+  'sidebar-collapsed': appStore.sidebarCollapsed,
+  'sidebar-dark': appStore.isDarkTheme
+}))
+
+const activeMenu = computed(() => route.path)
+
+const agentRoutes = computed(() => getAgentRoutes())
+
+const isSystemHealthy = computed(() => appStore.systemHealth.status === 'healthy')
+
+const systemStatusText = computed(() => {
+  switch (appStore.systemHealth.status) {
+    case 'healthy': return '系统正常'
+    case 'warning': return '系统警告'
+    case 'error': return '系统错误'
+    default: return '状态未知'
+  }
+})
+
+const systemStatusClass = computed(() => ({
+  'status-indicator--success': appStore.systemHealth.status === 'healthy',
+  'status-indicator--warning': appStore.systemHealth.status === 'warning',
+  'status-indicator--danger': appStore.systemHealth.status === 'error',
+  'status-indicator--info': appStore.systemHealth.status === 'unknown'
+}))
+
+// 方法
+const getAgentStatus = (agentType) => {
+  if (workflowStore.isExecuting && workflowStore.currentStep.includes(agentType)) {
+    return '执行中'
+  }
+  if (workflowStore.executionResults[agentType]) {
+    return '已完成'
+  }
+  return ''
+}
+
+const getAgentStatusType = (agentType) => {
+  if (workflowStore.isExecuting && workflowStore.currentStep.includes(agentType)) {
+    return 'primary'
+  }
+  if (workflowStore.executionResults[agentType]) {
+    return 'success'
+  }
+  return 'info'
+}
+
+const updateCurrentTime = () => {
+  const now = new Date()
+  currentTime.value = now.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
+// 生命周期
+onMounted(() => {
+  updateCurrentTime()
+  timeInterval.value = setInterval(updateCurrentTime, 1000)
+})
+
+onUnmounted(() => {
+  if (timeInterval.value) {
+    clearInterval(timeInterval.value)
+  }
+})
 </script>
 
-<style lang="scss" scoped>
-.sidebar-layout {
+<style scoped>
+.app-sidebar {
+  background-color: var(--el-bg-color-overlay);
+  border-right: 1px solid var(--el-border-color-light);
+  transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
+  height: 100vh;
+  overflow: hidden;
 }
 
-// 品牌区域
-.brand-section {
-  padding: 24px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+.sidebar-dark {
+  background-color: var(--el-bg-color);
+  border-right-color: var(--el-border-color);
 }
 
-.brand-content {
-  transition: all 0.3s ease;
-
-  &.collapsed {
-    text-align: center;
-  }
+/* 侧边栏头部 */
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--el-border-color-light);
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.brand-logo {
+.logo-section {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
 .logo-icon {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 32px;
+  height: 32px;
+  transition: transform 0.3s ease;
 }
 
-.brand-text {
-  min-width: 0;
+.logo-icon:hover {
+  transform: rotate(360deg);
 }
 
-.brand-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0;
-  color: #ffffff;
-  letter-spacing: 0.5px;
-}
-
-.brand-subtitle {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.8);
-  margin: 2px 0 0 0;
-  line-height: 1.2;
-}
-
-// 导航区域
-.navigation-section {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 0;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
-  }
-}
-
-.nav-menu {
-  padding: 0 12px;
-}
-
-.nav-group {
-  margin-bottom: 32px;
-
-  &:last-child {
-    margin-bottom: 16px;
-  }
-}
-
-.nav-group-title {
-  font-size: 11px;
+.logo-text {
+  font-size: 16px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 12px;
-  padding: 0 12px;
-}
-
-.nav-item {
-  display: block;
-  margin-bottom: 4px;
-  text-decoration: none;
-  color: inherit;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    transform: translateX(2px);
-  }
-
-  &.active {
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-
-    &::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 3px;
-      background: #ffffff;
-    }
-  }
-}
-
-.nav-item-content {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  gap: 12px;
-  min-height: 44px;
-}
-
-.nav-icon {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  color: rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nav-text {
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--el-text-color-primary);
+  margin: 0;
   white-space: nowrap;
-  overflow: hidden;
 }
 
-// 状态区域
-.status-section {
-  padding: 16px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+.logo-icon-collapsed {
+  font-size: 24px;
+  color: var(--el-color-primary);
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.logo-icon-collapsed:hover {
+  color: var(--el-color-primary-light-3);
+}
+
+/* 系统状态 */
+.system-status {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .status-indicator {
-  margin-bottom: 16px;
-
-  &.collapsed {
-    text-align: center;
-  }
-}
-
-.status-content {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  
-  &.status-healthy {
-    background: #10b981;
-    box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
-  }
-  
-  &.status-warning {
-    background: #f59e0b;
-    box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
-  }
-  
-  &.status-error {
-    background: #ef4444;
-    box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
-  }
-}
-
-.status-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.status-text {
+  padding: 6px 12px;
+  border-radius: 16px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.9);
   font-weight: 500;
-  line-height: 1.2;
-}
-
-.status-version {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.6);
-  line-height: 1.2;
-}
-
-// 折叠按钮
-.collapse-btn {
-  width: 100%;
-  height: 36px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.3);
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
-}
-
-.collapse-icon {
-  transition: transform 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &.rotated {
-    transform: rotate(180deg);
-  }
-}
-
-// 过渡动画
-.brand-fade-enter-active,
-.brand-fade-leave-active,
-.nav-fade-enter-active,
-.nav-fade-leave-active,
-.status-fade-enter-active,
-.status-fade-leave-active {
   transition: all 0.3s ease;
 }
 
-.brand-fade-enter-from,
-.brand-fade-leave-to,
-.nav-fade-enter-from,
-.nav-fade-leave-to,
-.status-fade-enter-from,
-.status-fade-leave-to {
-  opacity: 0;
-  transform: translateX(-8px);
+/* 菜单区域 */
+.sidebar-menu-wrapper {
+  flex: 1;
+  margin: 8px 0;
 }
 
-// 响应式设计
+.sidebar-menu {
+  border-right: none;
+  background-color: transparent;
+}
+
+.sidebar-menu .el-menu-item {
+  height: 48px;
+  line-height: 48px;
+  margin: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.sidebar-menu .el-menu-item:hover {
+  background-color: var(--el-color-primary-light-9);
+}
+
+.sidebar-menu .el-menu-item.is-active {
+  background-color: var(--el-color-primary-light-8);
+  color: var(--el-color-primary);
+  font-weight: 600;
+  position: relative;
+}
+
+.sidebar-menu .el-menu-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background-color: var(--el-color-primary);
+  border-radius: 0 2px 2px 0;
+}
+
+.sidebar-menu .el-sub-menu {
+  margin: 4px 8px;
+}
+
+.sidebar-menu .el-sub-menu .el-sub-menu__title {
+  height: 48px;
+  line-height: 48px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.sidebar-menu .el-sub-menu .el-sub-menu__title:hover {
+  background-color: var(--el-color-primary-light-9);
+}
+
+/* 智能体菜单项 */
+.agent-menu-item {
+  position: relative;
+}
+
+.agent-status-tag {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+/* 分割线 */
+.el-divider {
+  margin: 16px 0 8px;
+}
+
+.divider-text {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-weight: 500;
+}
+
+/* 侧边栏底部 */
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid var(--el-border-color-light);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.collapse-btn {
+  width: 32px;
+  height: 32px;
+  background-color: var(--el-fill-color);
+  border: 1px solid var(--el-border-color-light);
+  transition: all 0.3s ease;
+}
+
+.collapse-btn:hover {
+  background-color: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary-light-7);
+  color: var(--el-color-primary);
+}
+
+/* 工作流进度 */
+.workflow-progress {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: var(--el-fill-color-light);
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter);
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: var(--el-text-color-primary);
+  font-weight: 500;
+}
+
+.progress-percent {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+/* 当前时间 */
+.current-time {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  text-align: center;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  padding: 4px 8px;
+  background-color: var(--el-fill-color-lighter);
+  border-radius: 4px;
+  min-width: 80px;
+}
+
+/* 折叠状态样式 */
+.sidebar-collapsed .sidebar-menu .el-menu-item {
+  margin: 4px;
+  justify-content: center;
+}
+
+.sidebar-collapsed .agent-status-tag {
+  display: none;
+}
+
+.sidebar-collapsed .workflow-progress {
+  display: none;
+}
+
+.sidebar-collapsed .current-time {
+  display: none;
+}
+
+.sidebar-collapsed .system-status {
+  padding: 12px 4px;
+  text-align: center;
+}
+
+.sidebar-collapsed .status-indicator {
+  justify-content: center;
+  padding: 6px;
+}
+
+/* 响应式设计 */
 @media (max-width: 768px) {
-  .sidebar-layout {
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+  .app-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
   }
+  
+  .sidebar-collapsed {
+    transform: translateX(-100%);
+  }
+}
+
+/* 悬停效果 */
+.app-sidebar:hover .logo-icon {
+  transform: scale(1.1);
+}
+
+/* 动画效果 */
+.el-menu-item,
+.el-sub-menu__title {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.el-menu-item:active {
+  transform: scale(0.98);
+}
+
+/* 暗色主题适配 */
+.sidebar-dark .sidebar-header {
+  border-bottom-color: var(--el-border-color);
+}
+
+.sidebar-dark .system-status {
+  border-bottom-color: var(--el-border-color-lighter);
+}
+
+.sidebar-dark .sidebar-footer {
+  border-top-color: var(--el-border-color);
+}
+
+.sidebar-dark .workflow-progress {
+  background-color: var(--el-fill-color);
+  border-color: var(--el-border-color);
+}
+
+.sidebar-dark .current-time {
+  background-color: var(--el-fill-color);
+}
+
+/* 加载状态 */
+.sidebar-menu .el-menu-item.loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar-menu .el-menu-item.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--el-color-primary-light-8),
+    transparent
+  );
+  animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* 工具提示样式 */
+.el-tooltip__popper {
+  font-size: 12px;
+}
+
+/* 图标旋转动画 */
+.sidebar-menu .el-menu-item .el-icon {
+  transition: transform 0.3s ease;
+}
+
+.sidebar-menu .el-menu-item:hover .el-icon {
+  transform: scale(1.1);
+}
+
+/* 选中状态的特殊效果 */
+.sidebar-menu .el-menu-item.is-active {
+  box-shadow: inset 0 0 8px var(--el-color-primary-light-8);
+}
+
+/* 折叠动画 */
+.app-sidebar {
+  will-change: width;
+}
+
+.sidebar-menu-wrapper {
+  will-change: transform;
 }
 </style> 
