@@ -1,7 +1,7 @@
 {
-  "name": "vehicle-agents",
+  "name": "kunlunsec-ai-platform",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,21 +9,26 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@element-plus/icons-vue": "^2.3.1",
+    "@element-plus/icons-vue": "^2.1.0",
     "@vueuse/core": "^13.4.0",
-    "axios": "^1.10.0",
+    "axios": "^1.6.2",
     "echarts": "^5.6.0",
-    "element-plus": "^2.10.2",
+    "element-plus": "^2.3.14",
+    "highlight.js": "^11.9.0",
+    "markdown-it": "^13.0.1",
     "monaco-editor": "^0.52.2",
-    "pinia": "^3.0.3",
+    "pinia": "^2.1.6",
     "sass": "^1.89.2",
-    "vue": "^3.5.17",
-    "vue-router": "^4.5.1"
+    "vue": "^3.3.4",
+    "vue-router": "^4.2.4",
+    "socket.io-client": "^4.7.2"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.0",
+    "@vitejs/plugin-vue": "^4.2.3",
+    "eslint": "^8.49.0",
+    "eslint-plugin-vue": "^9.17.0",
     "unplugin-auto-import": "^19.3.0",
     "unplugin-vue-components": "^28.7.0",
-    "vite": "^5.4.0"
+    "vite": "^4.4.5"
   }
 }
