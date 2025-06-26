@@ -27,6 +27,7 @@ services:
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
       - DEBUG=false
       - LOG_LEVEL=INFO
+      - ALLOWED_ORIGINS=*
       
       # 性能配置
       - WORKERS=4
@@ -60,14 +61,13 @@ services:
     environment:
       - NODE_ENV=production
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
     depends_on:
       - backend
     networks:
       - tara_network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -155,28 +155,28 @@ services:
 
   # ============ 监控和管理服务 ============
   
-  # Nginx反向代理和负载均衡
-  nginx:
-    image: nginx:alpine
-    container_name: tara_nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./config/nginx.conf:/etc/nginx/nginx.conf
-      - ./config/ssl:/etc/nginx/ssl
-      - ./logs/nginx:/var/log/nginx
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - tara_network
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # Nginx反向代理和负载均衡 (暂时注释，避免端口冲突)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: tara_nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./config/nginx.conf:/etc/nginx/nginx.conf
+  #     - ./config/ssl:/etc/nginx/ssl
+  #     - ./logs/nginx:/var/log/nginx
+  #   depends_on:
+  #     - frontend
+  #     - backend
+  #   networks:
+  #     - tara_network
+  #   healthcheck:
+  #     test: ["CMD", "nginx", "-t"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
   # PGAdmin数据库管理
   pgadmin:

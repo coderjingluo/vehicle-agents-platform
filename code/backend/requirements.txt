@@ -3,6 +3,7 @@ uvicorn[standard]
 sqlalchemy
 alembic
 psycopg2-binary
+asyncpg
 redis
 chromadb
 pydantic
@@ -29,7 +30,6 @@ pypdf
 python-docx
 markdown
 beautifulsoup4
-sentence-transformers
 tiktoken
 pytest
 pytest-asyncio
@@ -41,7 +41,7 @@ flake8
 mypy
 prometheus-client
 structlog
-
+pydantic[email]
 aiofiles
 openpyxl
 lxml

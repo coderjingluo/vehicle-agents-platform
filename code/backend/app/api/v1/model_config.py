@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 
-from app.core.database import get_db_session
+from app.core.database import get_async_session
 from app.models.model_config import (
     ModelConfigCreate,
     ModelConfigUpdate,
@@ -31,7 +31,7 @@ router = APIRouter(prefix="/models", tags=["model-config"])
 @router.post("/", response_model=ModelConfigResponse)
 async def create_model_config(
     config_data: ModelConfigCreate,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """创建模型配置"""
     try:
@@ -52,7 +52,7 @@ async def list_model_configs(
     status: Optional[ModelStatus] = Query(None, description="按状态筛选"),
     limit: int = Query(100, ge=1, le=1000, description="返回数量限制"),
     offset: int = Query(0, ge=0, description="偏移量"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """获取模型配置列表"""
     try:
@@ -74,7 +74,7 @@ async def list_model_configs(
 @router.get("/{config_id}", response_model=ModelConfigResponse)
 async def get_model_config(
     config_id: str,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """获取模型配置详情"""
     try:
@@ -96,7 +96,7 @@ async def get_model_config(
 async def update_model_config(
     config_id: str,
     update_data: ModelConfigUpdate,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """更新模型配置"""
     try:
@@ -119,7 +119,7 @@ async def update_model_config(
 @router.delete("/{config_id}")
 async def delete_model_config(
     config_id: str,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """删除模型配置"""
     try:
@@ -141,7 +141,7 @@ async def delete_model_config(
 async def test_model_connection(
     config_id: str,
     test_request: ModelTestRequest = ModelTestRequest(),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """测试模型连接"""
     try:
@@ -159,7 +159,7 @@ async def test_model_connection(
 async def get_model_usage_stats(
     config_id: str,
     days: int = Query(30, ge=1, le=365, description="统计天数"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """获取模型使用统计"""
     try:
@@ -198,7 +198,7 @@ async def get_provider_info(provider: ModelProvider):
 @router.get("/defaults/{model_type}", response_model=ModelConfigResponse)
 async def get_default_model(
     model_type: ModelType,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """获取指定类型的默认模型"""
     try:
@@ -222,7 +222,7 @@ async def get_default_model(
 # 演示和快速配置API
 @router.post("/demo/quick-setup")
 async def quick_setup_models(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """快速设置演示模型配置"""
     try:
@@ -307,7 +307,7 @@ async def quick_setup_models(
 async def demo_chat_with_model(
     config_id: str,
     message: str = Query(..., description="聊天消息"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """演示与模型对话"""
     try:
@@ -366,7 +366,7 @@ async def list_supported_providers():
 async def batch_test_models(
     model_ids: List[str],
     test_message: str = "Hello, this is a test message.",
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """批量测试多个模型"""
     try:

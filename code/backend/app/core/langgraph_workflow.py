@@ -461,4 +461,22 @@ class LangGraphWorkflowManager:
         return {
             "learned_items": 3,
             "updated_knowledge": ["知识点1", "知识点2", "知识点3"]
-        } 
+        }
+
+
+# 全局工作流管理器实例
+_workflow_manager: Optional[LangGraphWorkflowManager] = None
+
+
+def get_workflow_manager() -> LangGraphWorkflowManager:
+    """获取工作流管理器实例"""
+    global _workflow_manager
+    if _workflow_manager is None:
+        from .llm_client import get_llm_manager
+        from .tool_registry import get_tool_registry
+        
+        llm_manager = get_llm_manager()
+        tool_registry = get_tool_registry()
+        _workflow_manager = LangGraphWorkflowManager(llm_manager, tool_registry)
+    
+    return _workflow_manager

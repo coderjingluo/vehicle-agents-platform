@@ -28,7 +28,7 @@ from app.models.knowledge_base import (
     DocumentSearchResponse,
     KnowledgeBaseStats
 )
-from app.core.database import get_db_session
+from app.core.database import get_async_session
 from app.services.document_processor import DocumentProcessor
 from app.services.vector_service import VectorService
 from app.core.config import get_settings

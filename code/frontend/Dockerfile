@@ -41,10 +41,6 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # 复制nginx配置
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# 创建nginx用户和组
-RUN addgroup -g 101 nginx && \
-    adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx
-
 # 暴露端口
 EXPOSE 80
 

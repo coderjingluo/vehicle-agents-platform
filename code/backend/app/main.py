@@ -76,7 +76,7 @@ app = FastAPI(
 # CORS配置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS if hasattr(settings, 'ALLOWED_ORIGINS') else ["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -175,6 +175,7 @@ async def get_system_metrics():
 
 # 注册API路由
 app.include_router(api_router, prefix="/api/v1")
+
 
 # 静态文件服务（如果需要）
 # app.mount("/static", StaticFiles(directory="static"), name="static")

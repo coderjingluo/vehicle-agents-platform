@@ -22,7 +22,12 @@ class AutomationAgent(BaseAgent):
     """自动化测试智能体"""
     
     def __init__(self):
-        super().__init__()
+        agent_id = str(uuid.uuid4())
+        super().__init__(
+            agent_id=agent_id,
+            name="自动化测试智能体",
+            description="生成和执行自动化测试脚本"
+        )
         self.agent_type = AgentType.AUTOMATION_TEST
         self.test_frameworks = {
             "pytest": "Python测试框架",
@@ -78,23 +83,19 @@ class AutomationAgent(BaseAgent):
             if "steps" in plan_data:
                 for step_data in plan_data["steps"]:
                     step = AgentStep(
-                        id=str(uuid.uuid4()),
+                        step_id=str(uuid.uuid4()),
                         name=step_data.get("name", "Unknown Step"),
                         description=step_data.get("description", ""),
-                        tool_calls=step_data.get("tools", []),
-                        expected_output=step_data.get("expected_output", ""),
-                        success_criteria=step_data.get("success_criteria", ""),
-                        status="pending"
+                        tool_name=step_data.get("tool_name", None),
+                        parameters=step_data.get("parameters", {}),
+                        dependencies=step_data.get("dependencies", [])
                     )
                     steps.append(step)
             
             return AgentPlan(
-                id=str(uuid.uuid4()),
-                agent_type=self.agent_type,
+                plan_id=str(uuid.uuid4()),
                 description=plan_data.get("description", "自动化测试实施计划"),
-                steps=steps,
-                estimated_duration=plan_data.get("estimated_duration", 40),
-                created_at=datetime.utcnow()
+                steps=steps
             )
             
         except Exception as e:
@@ -105,59 +106,51 @@ class AutomationAgent(BaseAgent):
         """获取默认的自动化测试计划"""
         default_steps = [
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="测试用例分析",
                 description="分析测试用例，评估自动化可行性和复杂度",
-                tool_calls=["test_case_analyzer"],
-                expected_output="自动化可行性评估报告",
-                success_criteria="成功分类可自动化和手动测试用例",
-                status="pending"
+                tool_name="test_case_analyzer",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="测试框架选择",
                 description="基于测试类型选择合适的自动化测试框架",
-                tool_calls=["framework_selector"],
-                expected_output="测试框架选择方案",
-                success_criteria="选择的框架满足所有测试需求",
-                status="pending"
+                tool_name="framework_selector",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="测试环境配置",
                 description="配置自动化测试环境和依赖",
-                tool_calls=["environment_configurator"],
-                expected_output="测试环境配置文档",
-                success_criteria="测试环境运行稳定",
-                status="pending"
+                tool_name="environment_configurator",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="自动化脚本生成",
                 description="基于测试用例生成自动化测试脚本",
-                tool_calls=["script_generator"],
-                expected_output="完整的自动化测试脚本",
-                success_criteria="脚本可执行且覆盖所有测试点",
-                status="pending"
+                tool_name="script_generator",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="测试执行",
                 description="执行自动化测试并收集结果",
-                tool_calls=["test_executor"],
-                expected_output="测试执行报告",
-                success_criteria="所有测试正常执行完成",
-                status="pending"
+                tool_name="test_executor",
+                parameters={},
+                dependencies=[]
             )
         ]
         
         return AgentPlan(
-            id=str(uuid.uuid4()),
-            agent_type=self.agent_type,
+            plan_id=str(uuid.uuid4()),
             description="标准自动化测试实施流程",
-            steps=default_steps,
-            estimated_duration=35,
-            created_at=datetime.utcnow()
+            steps=default_steps
         )
     
     async def execute_step(self, step: AgentStep, context: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -184,7 +177,7 @@ class AutomationAgent(BaseAgent):
             return {
                 "success": False,
                 "error": str(e),
-                "step_id": step.id,
+                "step_id": step.step_id,
                 "timestamp": datetime.utcnow().isoformat()
             }
     

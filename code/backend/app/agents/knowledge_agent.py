@@ -22,7 +22,12 @@ class KnowledgeAgent(BaseAgent):
     """知识库智能体"""
     
     def __init__(self):
-        super().__init__()
+        agent_id = str(uuid.uuid4())
+        super().__init__(
+            agent_id=agent_id,
+            name="知识库智能体",
+            description="项目知识自动归档和持续学习优化"
+        )
         self.agent_type = AgentType.KNOWLEDGE_BASE
         self.knowledge_categories = {
             "threats": "威胁情报和攻击模式",
@@ -38,63 +43,138 @@ class KnowledgeAgent(BaseAgent):
     def get_agent_type(self) -> str:
         return "knowledge_base"
     
+    async def execute(self, user_request: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """执行知识库管理流程"""
+        try:
+            self.logger.info(f"开始执行知识库管理: {user_request}")
+            
+            # 生成计划
+            plan = await self.generate_plan(user_request, context)
+            
+            results = {}
+            all_steps_results = []
+            
+            # 逐步执行计划
+            for step in plan.steps:
+                step.status = "running"
+                step.started_at = datetime.utcnow()
+                
+                # 执行步骤
+                context_dict = context or {}
+                context_dict.update({
+                    "previous_results": results,
+                    "plan": plan.to_dict()
+                })
+                step_result = await self.execute_step(step, context_dict)
+                
+                # 更新步骤状态
+                step.status = "completed" if step_result.get("success", False) else "failed"
+                step.completed_at = datetime.utcnow()
+                step.result = step_result
+                
+                # 保存步骤结果
+                if step.status == "completed":
+                    results[step.name] = step_result.get("result", {})
+                    all_steps_results.append(step_result)
+                
+                # 更新计划进度
+                plan.update_progress()
+            
+            # 聚合结果
+            final_result = await self.aggregate_results(all_steps_results, context or {})
+            
+            return {
+                "success": True,
+                "plan": plan.to_dict(),
+                "result": final_result,
+                "agent_type": self.get_agent_type(),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"知识库管理失败: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "agent_type": self.get_agent_type(),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+    
+    async def aggregate_results(self, step_results: List[Dict[str, Any]], context: Dict[str, Any]) -> Dict[str, Any]:
+        """聚合所有步骤的结果"""
+        knowledge_items = []
+        knowledge_categories = {}
+        knowledge_relations = []
+        
+        # 提取知识项目
+        for result in step_results:
+            if "result" in result and isinstance(result["result"], dict):
+                if "knowledge_items" in result["result"]:
+                    knowledge_items.extend(result["result"]["knowledge_items"])
+                if "categories" in result["result"]:
+                    knowledge_categories.update(result["result"]["categories"])
+                if "relations" in result["result"]:
+                    knowledge_relations.extend(result["result"]["relations"])
+        
+        return {
+            "knowledge_items": knowledge_items,
+            "knowledge_categories": knowledge_categories,
+            "knowledge_relations": knowledge_relations,
+            "total_items": len(knowledge_items),
+            "total_categories": len(knowledge_categories),
+            "total_relations": len(knowledge_relations),
+            "generation_time": datetime.utcnow().isoformat()
+        }
+    
     async def _generate_plan(self, user_request: str, context: Dict[str, Any] = None) -> AgentPlan:
         """生成知识库管理计划"""
         default_steps = [
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="知识提取",
                 description="从项目执行过程中提取有价值的知识和经验",
-                tool_calls=["knowledge_extractor"],
-                expected_output="结构化的知识条目",
-                success_criteria="成功提取关键知识点并分类",
-                status="pending"
+                tool_name="knowledge_extractor",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="知识分类",
                 description="对提取的知识进行分类和标签化管理",
-                tool_calls=["knowledge_classifier"],
-                expected_output="分类后的知识库结构",
-                success_criteria="知识分类准确且便于检索",
-                status="pending"
+                tool_name="knowledge_classifier",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="知识关联",
                 description="建立知识条目之间的关联关系",
-                tool_calls=["knowledge_linker"],
-                expected_output="知识关联图谱",
-                success_criteria="知识关联准确且有助于知识发现",
-                status="pending"
+                tool_name="knowledge_linker",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="知识优化",
                 description="优化知识库结构和内容质量",
-                tool_calls=["knowledge_optimizer"],
-                expected_output="优化后的知识库",
-                success_criteria="知识库质量提升且检索效率改善",
-                status="pending"
+                tool_name="knowledge_optimizer",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="知识推荐",
                 description="基于用户需求推荐相关知识",
-                tool_calls=["knowledge_recommender"],
-                expected_output="个性化知识推荐",
-                success_criteria="推荐内容相关性高且有实用价值",
-                status="pending"
+                tool_name="knowledge_recommender",
+                parameters={},
+                dependencies=[]
             )
         ]
         
         return AgentPlan(
-            id=str(uuid.uuid4()),
-            agent_type=self.agent_type,
+            plan_id=str(uuid.uuid4()),
             description="知识库管理和优化流程",
-            steps=default_steps,
-            estimated_duration=25,
-            created_at=datetime.utcnow()
+            steps=default_steps
         )
     
     async def execute_step(self, step: AgentStep, context: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -120,7 +200,7 @@ class KnowledgeAgent(BaseAgent):
             return {
                 "success": False,
                 "error": str(e),
-                "step_id": step.id,
+                "step_id": step.step_id,
                 "timestamp": datetime.utcnow().isoformat()
             }
     

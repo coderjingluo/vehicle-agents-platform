@@ -39,6 +39,10 @@ const agentsAPI = {
    * @param {boolean} params.stream - 是否启用流式响应
    * @param {string} params.priority - 优先级
    * @param {Object} params.metadata - 请求元数据
+   * @param {boolean} params.enable_planning - 启用智能步骤分配
+   * @param {boolean} params.step_by_step - 启用步骤化执行
+   * @param {boolean} params.chat_mode - 启用聊天模式
+   * @param {Object} params.agent_config - 智能体特定配置
    */
   executeAgent(agentType, params) {
     return apiClient.post(`/agents/${agentType}/execute`, params)
@@ -50,7 +54,14 @@ const agentsAPI = {
    * @param {Object} params - 执行参数
    */
   async streamAgentExecution(agentType, params) {
-    const response = await fetch(`${apiClient.defaults.baseURL}/agents/${agentType}/stream`, {
+    // 使用apiClient的baseURL，确保URL路径一致
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://192.168.136.129:8000'
+    // 使用完整的API路径
+    const url = `${baseUrl}/api/v1/agents/${agentType}/stream`
+    
+    console.log(`Streaming agent execution to: ${url}`)
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -383,6 +394,61 @@ const agentsAPI = {
     terminate() {
       return agentsAPI.terminateAgent('knowledge_base')
     }
+  },
+
+  /**
+   * 执行智能体并支持智能步骤分配
+   * @param {string} agentType - 智能体类型
+   * @param {Object} params - 执行参数
+   * @param {string} params.user_request - 用户请求内容
+   * @param {Object} params.context - 执行上下文
+   * @param {boolean} params.enable_planning - 是否启用智能步骤分配
+   * @param {boolean} params.stream - 是否启用流式响应
+   */
+  executeAgentWithPlanning(agentType, params) {
+    const requestParams = {
+      ...params,
+      enable_planning: true,
+      step_by_step: true,
+      chat_mode: true
+    }
+    return this.executeAgent(agentType, requestParams)
+  },
+
+  /**
+   * 带智能规划的流式执行智能体
+   * @param {string} agentType - 智能体类型
+   * @param {Object} params - 执行参数
+   */
+  async streamAgentExecutionWithPlanning(agentType, params) {
+    // 确保设置了规划相关参数
+    const execParams = {
+      ...params,
+      enable_planning: true,
+      stream: true
+    }
+    
+    // 使用apiClient的baseURL，确保URL路径一致
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://192.168.136.129:8000'
+    // 使用完整的API路径
+    const url = `${baseUrl}/api/v1/agents/${agentType}/stream`
+    
+    console.log(`Streaming agent execution with planning to: ${url}`)
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...apiClient.defaults.headers,
+      },
+      body: JSON.stringify(execParams)
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+    
+    return response.body.getReader()
   }
 }
 

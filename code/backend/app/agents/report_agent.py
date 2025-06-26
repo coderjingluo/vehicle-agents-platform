@@ -22,7 +22,12 @@ class ReportAgent(BaseAgent):
     """报告分析智能体"""
     
     def __init__(self):
-        super().__init__()
+        agent_id = str(uuid.uuid4())
+        super().__init__(
+            agent_id=agent_id,
+            name="报告分析智能体",
+            description="综合分析测试结果并生成专业报告"
+        )
         self.agent_type = AgentType.REPORT_ANALYSIS
         self.report_standards = {
             "ISO_21434": "道路车辆网络安全工程报告",
@@ -45,59 +50,51 @@ class ReportAgent(BaseAgent):
         """生成报告分析计划"""
         default_steps = [
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="数据收集整理",
                 description="收集并整理TARA分析、测试用例、自动化测试等所有相关数据",
-                tool_calls=["data_collector"],
-                expected_output="完整的测试数据集合",
-                success_criteria="所有测试数据完整收集且格式统一",
-                status="pending"
+                tool_name="data_collector",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="风险评估分析",
                 description="基于测试结果进行综合风险评估和优先级排序",
-                tool_calls=["risk_analyzer"],
-                expected_output="风险评估矩阵和优先级排序",
-                success_criteria="风险等级准确分类，优先级合理排序",
-                status="pending"
+                tool_name="risk_analyzer",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="合规性检查",
                 description="检查测试结果是否符合相关标准和法规要求",
-                tool_calls=["compliance_checker"],
-                expected_output="合规性评估报告",
-                success_criteria="明确识别合规性差距和改进建议",
-                status="pending"
+                tool_name="compliance_checker",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="修复建议生成",
                 description="基于发现的问题生成具体的修复建议和缓解措施",
-                tool_calls=["fix_recommender"],
-                expected_output="详细的修复建议和实施计划",
-                success_criteria="修复建议具体可行，优先级明确",
-                status="pending"
+                tool_name="fix_recommender",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="报告生成",
                 description="生成完整的专业安全测试报告",
-                tool_calls=["report_generator"],
-                expected_output="结构化的安全测试报告",
-                success_criteria="报告内容完整，格式专业，结论明确",
-                status="pending"
+                tool_name="report_generator",
+                parameters={},
+                dependencies=[]
             )
         ]
         
         return AgentPlan(
-            id=str(uuid.uuid4()),
-            agent_type=self.agent_type,
+            plan_id=str(uuid.uuid4()),
             description="安全测试报告生成流程",
-            steps=default_steps,
-            estimated_duration=30,
-            created_at=datetime.utcnow()
+            steps=default_steps
         )
     
     async def execute_step(self, step: AgentStep, context: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -123,7 +120,7 @@ class ReportAgent(BaseAgent):
             return {
                 "success": False,
                 "error": str(e),
-                "step_id": step.id,
+                "step_id": step.step_id,
                 "timestamp": datetime.utcnow().isoformat()
             }
     
@@ -175,7 +172,7 @@ class ReportAgent(BaseAgent):
         return {
             "success": True,
             "result": data_collection,
-            "step_id": step.id,
+            "step_id": step.step_id,
             "data_sources": list(context.keys()) if context else [],
             "collection_type": "comprehensive_data",
             "timestamp": datetime.utcnow().isoformat()
@@ -240,7 +237,7 @@ class ReportAgent(BaseAgent):
         return {
             "success": True,
             "result": risk_analysis,
-            "step_id": step.id,
+            "step_id": step.step_id,
             "analysis_type": "comprehensive_risk_assessment",
             "timestamp": datetime.utcnow().isoformat()
         }
@@ -304,7 +301,7 @@ class ReportAgent(BaseAgent):
         return {
             "success": True,
             "result": compliance_check,
-            "step_id": step.id,
+            "step_id": step.step_id,
             "standards_checked": ["ISO_21434", "SAE_J3061", "UNECE_WP29", "NIST_CSF"],
             "check_type": "multi_standard_compliance",
             "timestamp": datetime.utcnow().isoformat()
@@ -374,7 +371,7 @@ class ReportAgent(BaseAgent):
         return {
             "success": True,
             "result": recommendations,
-            "step_id": step.id,
+            "step_id": step.step_id,
             "recommendation_type": "comprehensive_remediation",
             "timestamp": datetime.utcnow().isoformat()
         }
@@ -468,7 +465,7 @@ class ReportAgent(BaseAgent):
             "success": True,
             "result": final_report,
             "metadata": report_metadata,
-            "step_id": step.id,
+            "step_id": step.step_id,
             "report_sections": 8,
             "timestamp": datetime.utcnow().isoformat()
         }
@@ -498,7 +495,7 @@ class ReportAgent(BaseAgent):
         return {
             "success": True,
             "result": result,
-            "step_id": step.id,
+            "step_id": step.step_id,
             "execution_type": "general",
             "timestamp": datetime.utcnow().isoformat()
         }

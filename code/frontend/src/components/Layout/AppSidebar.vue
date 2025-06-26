@@ -159,6 +159,10 @@ import {
   Fold, CircleCheckFilled, WarningFilled
 } from '@element-plus/icons-vue'
 
+// API imports
+import systemAPI from '../../api/modules/system'
+import agentsAPI from '../../api/modules/agents'
+
 // 状态管理
 const appStore = useAppStore()
 const workflowStore = useWorkflowStore()
@@ -167,6 +171,8 @@ const route = useRoute()
 // 响应式数据
 const currentTime = ref('')
 const timeInterval = ref(null)
+const systemHealth = ref({ status: 'unknown', message: '检查中...' })
+const agentStatuses = ref({})
 
 // 图标映射
 const iconComponents = {
@@ -189,42 +195,116 @@ const activeMenu = computed(() => route.path)
 
 const agentRoutes = computed(() => getAgentRoutes())
 
-const isSystemHealthy = computed(() => appStore.systemHealth.status === 'healthy')
+const isSystemHealthy = computed(() => systemHealth.value.status === 'healthy')
 
 const systemStatusText = computed(() => {
-  switch (appStore.systemHealth.status) {
+  switch (systemHealth.value.status) {
     case 'healthy': return '系统正常'
-    case 'warning': return '系统警告'
-    case 'error': return '系统错误'
+    case 'degraded': return '系统警告'
+    case 'unhealthy': return '系统错误'
+    case 'unknown': return '状态检查中'
     default: return '状态未知'
   }
 })
 
 const systemStatusClass = computed(() => ({
-  'status-indicator--success': appStore.systemHealth.status === 'healthy',
-  'status-indicator--warning': appStore.systemHealth.status === 'warning',
-  'status-indicator--danger': appStore.systemHealth.status === 'error',
-  'status-indicator--info': appStore.systemHealth.status === 'unknown'
+  'status-indicator--success': systemHealth.value.status === 'healthy',
+  'status-indicator--warning': systemHealth.value.status === 'degraded',
+  'status-indicator--danger': systemHealth.value.status === 'unhealthy',
+  'status-indicator--info': systemHealth.value.status === 'unknown'
 }))
+
+// 获取系统健康状态
+const fetchSystemHealth = async () => {
+  try {
+    const response = await systemAPI.healthCheck()
+    systemHealth.value = {
+      status: response.data.status,
+      message: response.data.message || systemStatusText.value,
+      components: response.data.components || {}
+    }
+    
+    // 更新全局状态
+    appStore.updateSystemHealth(systemHealth.value)
+  } catch (error) {
+    console.error('获取系统健康状态失败:', error)
+    systemHealth.value = {
+      status: 'unhealthy',
+      message: '健康检查失败',
+      error: error.message
+    }
+    appStore.updateSystemHealth(systemHealth.value)
+  }
+}
+
+// 获取智能体状态
+const fetchAgentStatuses = async () => {
+  try {
+    const response = await agentsAPI.getAgentsList()
+    if (response.data?.success) {
+      const newStatuses = {}
+      
+      Object.entries(response.data.agents).forEach(([agentType, agentInfo]) => {
+        newStatuses[agentType] = {
+          status: agentInfo.instance_status || 'inactive',
+          instance_id: agentInfo.instance_id,
+          last_activity: agentInfo.last_activity,
+          metrics: agentInfo.metrics
+        }
+      })
+      
+      agentStatuses.value = newStatuses
+    }
+  } catch (error) {
+    console.error('获取智能体状态失败:', error)
+  }
+}
 
 // 方法
 const getAgentStatus = (agentType) => {
-  if (workflowStore.isExecuting && workflowStore.currentStep.includes(agentType)) {
+  const status = agentStatuses.value[agentType]
+  
+  // 优先显示工作流执行状态
+  if (workflowStore.isExecuting && workflowStore.currentStep?.includes(agentType)) {
     return '执行中'
   }
-  if (workflowStore.executionResults[agentType]) {
-    return '已完成'
+  
+  // 显示智能体实例状态
+  if (status?.status === 'active') {
+    return '在线'
+  } else if (status?.status === 'inactive') {
+    return '离线'
   }
+  
+  // 显示历史执行结果
+  if (workflowStore.executionResults[agentType]) {
+    const result = workflowStore.executionResults[agentType]
+    return result.status === 'completed' ? '已完成' : '执行失败'
+  }
+  
   return ''
 }
 
 const getAgentStatusType = (agentType) => {
-  if (workflowStore.isExecuting && workflowStore.currentStep.includes(agentType)) {
+  // 优先显示工作流执行状态
+  if (workflowStore.isExecuting && workflowStore.currentStep?.includes(agentType)) {
     return 'primary'
   }
-  if (workflowStore.executionResults[agentType]) {
+  
+  // 显示智能体实例状态
+  const status = agentStatuses.value[agentType]
+  if (status?.status === 'active') {
     return 'success'
+  } else if (status?.status === 'inactive') {
+    return 'info'
   }
+  
+  // 显示历史执行结果
+  if (workflowStore.executionResults[agentType]) {
+    const result = workflowStore.executionResults[agentType]
+    return result.status === 'completed' ? 'success' : 'danger'
+  }
+  
   return 'info'
 }
 
@@ -237,16 +317,40 @@ const updateCurrentTime = () => {
   })
 }
 
+// 定期更新状态
+const startStatusPolling = () => {
+  // 立即执行一次
+  fetchSystemHealth()
+  fetchAgentStatuses()
+  
+  // 定期更新系统健康状态 (每30秒)
+  const healthInterval = setInterval(fetchSystemHealth, 30000)
+  
+  // 定期更新智能体状态 (每10秒)
+  const agentInterval = setInterval(fetchAgentStatuses, 10000)
+  
+  return () => {
+    clearInterval(healthInterval)
+    clearInterval(agentInterval)
+  }
+}
+
 // 生命周期
 onMounted(() => {
+  // 更新当前时间
   updateCurrentTime()
   timeInterval.value = setInterval(updateCurrentTime, 1000)
-})
-
-onUnmounted(() => {
-  if (timeInterval.value) {
-    clearInterval(timeInterval.value)
-  }
+  
+  // 开始状态轮询
+  const stopPolling = startStatusPolling()
+  
+  // 清理函数
+  onUnmounted(() => {
+    if (timeInterval.value) {
+      clearInterval(timeInterval.value)
+    }
+    stopPolling()
+  })
 })
 </script>
 

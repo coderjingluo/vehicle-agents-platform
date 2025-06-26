@@ -17,7 +17,7 @@ const systemAPI = {
    * 系统健康检查
    */
   healthCheck() {
-    return apiClient.get('/system/health')
+    return apiClient.get('/health')
   },
 
   /**

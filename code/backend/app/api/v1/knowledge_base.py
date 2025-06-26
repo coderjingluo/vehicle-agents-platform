@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 import json
 
-from app.core.database import get_db_session
+from app.core.database import get_async_session
 from app.models.knowledge_base import (
     KnowledgeBaseCreate,
     KnowledgeBaseUpdate,
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/knowledge-bases", tags=["knowledge-base"])
 @router.post("/", response_model=KnowledgeBaseResponse)
 async def create_knowledge_base(
     kb_data: KnowledgeBaseCreate,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """创建知识库"""
     try:
@@ -51,7 +51,7 @@ async def list_knowledge_bases(
     status: Optional[KnowledgeBaseStatus] = Query(None, description="按状态筛选"),
     limit: int = Query(100, ge=1, le=1000, description="返回数量限制"),
     offset: int = Query(0, ge=0, description="偏移量"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """获取知识库列表"""
     try:
@@ -77,7 +77,7 @@ async def list_knowledge_bases(
 async def get_knowledge_base(
     kb_id: str,
     include_documents: bool = Query(False, description="是否包含文档列表"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """获取知识库详情"""
     try:
@@ -101,7 +101,7 @@ async def get_knowledge_base(
 async def update_knowledge_base(
     kb_id: str,
     kb_data: KnowledgeBaseUpdate,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """更新知识库"""
     try:
@@ -124,7 +124,7 @@ async def update_knowledge_base(
 @router.delete("/{kb_id}")
 async def delete_knowledge_base(
     kb_id: str,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """删除知识库"""
     try:
@@ -149,7 +149,7 @@ async def upload_document(
     name: str = Form(..., description="文档名称"),
     file_type: DocumentType = Form(..., description="文档类型"),
     metadata: str = Form("{}", description="文档元数据(JSON格式)"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """上传文档到知识库"""
     try:
@@ -213,7 +213,7 @@ async def list_documents(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     processing_status: Optional[str] = Query(None, description="处理状态筛选"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """获取知识库中的文档列表"""
     try:
@@ -247,7 +247,7 @@ async def list_documents(
 async def delete_document(
     kb_id: str,
     doc_id: str,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """删除文档"""
     try:
@@ -269,7 +269,7 @@ async def delete_document(
 @router.post("/search", response_model=DocumentSearchResponse)
 async def search_documents(
     search_request: DocumentSearchRequest,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """搜索文档"""
     try:
@@ -286,7 +286,7 @@ async def search_documents(
 
 @router.get("/stats/overview", response_model=KnowledgeBaseStats)
 async def get_knowledge_base_stats(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """获取知识库统计信息"""
     try:
@@ -305,7 +305,7 @@ async def demo_upload_and_search(
     kb_id: str,
     file: UploadFile = File(...),
     search_query: str = Form(..., description="搜索查询"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """演示：上传文档并立即搜索"""
     try:
@@ -360,7 +360,7 @@ async def demo_upload_and_search(
 
 @router.get("/demo/sample-data")
 async def create_demo_knowledge_base(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_async_session)
 ):
     """创建演示知识库和示例数据"""
     try:

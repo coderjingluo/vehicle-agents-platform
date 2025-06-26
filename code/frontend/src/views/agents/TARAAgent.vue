@@ -6,9 +6,46 @@
         TARA智能体
       </h1>
       <p class="page-description">威胁分析与风险评估 (Threat Analysis and Risk Assessment)</p>
+      
+      <!-- 模式切换 -->
+      <div class="mode-switcher">
+        <el-button-group>
+          <el-button 
+            @click="currentMode = 'chat'" 
+            :type="currentMode === 'chat' ? 'primary' : ''"
+            size="small"
+          >
+            <el-icon><ChatLineSquare /></el-icon>
+            智能对话
+          </el-button>
+          <el-button 
+            @click="currentMode = 'config'" 
+            :type="currentMode === 'config' ? 'primary' : ''"
+            size="small"
+          >
+            <el-icon><Setting /></el-icon>
+            配置模式
+          </el-button>
+        </el-button-group>
+        <el-tag :type="getAgentStatusType(agentStatus)" size="small">
+          {{ getAgentStatusText(agentStatus) }}
+        </el-tag>
+      </div>
     </div>
 
-    <div class="tara-content">
+    <!-- 智能对话模式 -->
+    <div v-if="currentMode === 'chat'" class="chat-mode">
+      <AgentChat 
+        agent-type="tara"
+        :initial-context="getChatContext()"
+        @execution-start="onChatExecutionStart"
+        @execution-complete="onChatExecutionComplete"
+        @execution-error="onChatExecutionError"
+      />
+    </div>
+
+    <!-- 配置模式 -->
+    <div v-else class="tara-content">
       <!-- 分析配置面板 -->
       <el-card class="config-panel" shadow="never">
         <template #header>
@@ -392,10 +429,13 @@ import {
   Plus, 
   Close, 
   Download, 
-  ArrowRight 
+  ArrowRight,
+  ChatLineSquare,
+  Setting
 } from '@element-plus/icons-vue'
 import agentsAPI from '../../api/modules/agents'
 import * as echarts from 'echarts'
+import AgentChat from '../../components/common/AgentChat.vue'
 
 const router = useRouter()
 
@@ -403,6 +443,10 @@ const router = useRouter()
 const configFormRef = ref()
 const componentInputRef = ref()
 const riskChartRef = ref()
+
+// 模式控制
+const currentMode = ref('chat') // 'chat' 或 'config'
+const agentStatus = ref('ready') // 'ready', 'busy', 'error'
 
 const isExecuting = ref(false)
 const showExecutionPanel = ref(false)
@@ -513,129 +557,54 @@ const formatTime = (timestamp) => {
   return new Date(timestamp).toLocaleTimeString()
 }
 
-// 生成模拟TARA分析结果
-const generateMockTARAResult = () => {
-  return {
-    threats: [
-      {
-        id: 'T001',
-        name: 'CAN总线未授权访问',
-        description: '攻击者可能通过物理访问或恶意软件获取CAN总线的访问权限，导致车辆控制功能被篡改',
-        category: '网络安全',
-        impact: '高',
-        likelihood: '中',
-        risk_score: 7.5,
-        attack_vectors: ['物理接入', 'OBD-II端口', '恶意软件注入']
-      },
-      {
-        id: 'T002',
-        name: '无线通信窃听',
-        description: '车辆与外部系统的无线通信可能被恶意第三方截获和分析',
-        category: '通信安全',
-        impact: '中',
-        likelihood: '高',
-        risk_score: 6.0,
-        attack_vectors: ['射频窃听', '中间人攻击', '伪基站']
-      },
-      {
-        id: 'T003',
-        name: '固件篡改',
-        description: '攻击者可能通过各种手段篡改车载控制单元的固件',
-        category: '软件安全',
-        impact: '高',
-        likelihood: '低',
-        risk_score: 5.5,
-        attack_vectors: ['调试接口', '引导程序漏洞', '供应链攻击']
-      },
-      {
-        id: 'T004',
-        name: '传感器数据欺骗',
-        description: '攻击者可能通过信号注入等方式欺骗车辆传感器',
-        category: '硬件安全',
-        impact: '高',
-        likelihood: '中',
-        risk_score: 7.0,
-        attack_vectors: ['信号注入', '传感器干扰', '物理遮挡']
-      },
-      {
-        id: 'T005',
-        name: '用户数据泄露',
-        description: '车辆收集的用户个人数据可能被非法访问或泄露',
-        category: '隐私安全',
-        impact: '中',
-        likelihood: '中',
-        risk_score: 4.5,
-        attack_vectors: ['数据库入侵', '存储设备盗取', '网络传输截获']
-      },
-      {
-        id: 'T006',
-        name: '远程代码执行',
-        description: '攻击者可能通过漏洞在车载系统上执行恶意代码',
-        category: '软件安全',
-        impact: '高',
-        likelihood: '低',
-        risk_score: 5.0,
-        attack_vectors: ['缓冲区溢出', '脚本注入', 'API漏洞']
-      }
-    ],
-    mitigations: [
-      {
-        title: 'CAN总线安全加固',
-        description: '实施CAN总线访问控制和消息认证机制',
-        priority: '高',
-        implementation: '部署CAN安全网关，实施消息签名验证，限制物理访问',
-        expected_effect: '降低CAN总线未授权访问风险至低等级',
-        cost_estimate: '中等投入，预计6-8个月实施周期'
-      },
-      {
-        title: '通信加密强化',
-        description: '对所有无线通信实施端到端加密',
-        priority: '中',
-        implementation: '采用TLS 1.3+协议，实施证书管理，定期更新加密密钥',
-        expected_effect: '有效防止通信窃听和篡改',
-        cost_estimate: '低等投入，预计3-4个月实施周期'
-      },
-      {
-        title: '固件安全启动',
-        description: '实施安全启动和固件完整性校验',
-        priority: '高',
-        implementation: '部署硬件安全模块(HSM)，实施固件签名验证',
-        expected_effect: '防止固件篡改，确保系统完整性',
-        cost_estimate: '高等投入，预计8-12个月实施周期'
-      },
-      {
-        title: '传感器信号验证',
-        description: '实施多传感器融合和信号异常检测',
-        priority: '中',
-        implementation: '部署传感器融合算法，实施实时异常检测',
-        expected_effect: '降低传感器欺骗成功率',
-        cost_estimate: '中等投入，预计4-6个月实施周期'
-      }
-    ],
-    compliance: [
-      {
-        standard: 'ISO 21434',
-        status: 'compliant',
-        compliance_rate: 85,
-        requirements: ['网络安全管理', '风险评估', '威胁分析', '安全验证'],
-        gaps: ['缺少持续监控机制', '部分供应商评估不完整']
-      },
-      {
-        standard: 'SAE J3061',
-        status: 'compliant',
-        compliance_rate: 78,
-        requirements: ['车联网安全', '通信安全', '数据保护'],
-        gaps: ['V2X通信安全措施不足', '数据生命周期管理缺失']
-      },
-      {
-        standard: 'UNECE WP.29',
-        status: 'non-compliant',
-        compliance_rate: 65,
-        requirements: ['网络安全管理系统', '风险管理', '监控响应'],
-        gaps: ['缺少CSMS认证', '事件响应流程不完善', '供应链安全管理不足']
-      }
-    ]
+// 智能体状态管理
+const getAgentStatusType = (status) => {
+  const types = {
+    'ready': 'success',
+    'busy': 'warning', 
+    'error': 'danger',
+    'offline': 'info'
   }
+  return types[status] || 'info'
+}
+
+const getAgentStatusText = (status) => {
+  const texts = {
+    'ready': '就绪',
+    'busy': '忙碌',
+    'error': '错误',
+    'offline': '离线'
+  }
+  return texts[status] || status
+}
+
+// 聊天模式相关方法
+const getChatContext = () => {
+  return {
+    system_name: configForm.systemName || '',
+    system_type: configForm.systemType || '',
+    system_description: configForm.systemDescription || '',
+    components: configForm.components || [],
+    interfaces: configForm.interfaces || [],
+    data_types: configForm.dataTypes || [],
+    standards: configForm.standards || ['iso21434'],
+    analysis_depth: configForm.analysisDepth || 'standard'
+  }
+}
+
+const onChatExecutionStart = () => {
+  agentStatus.value = 'busy'
+  ElMessage.info('TARA智能体开始执行...')
+}
+
+const onChatExecutionComplete = () => {
+  agentStatus.value = 'ready'
+  ElMessage.success('TARA分析已完成')
+}
+
+const onChatExecutionError = (error) => {
+  agentStatus.value = 'error'
+  ElMessage.error(`TARA分析失败: ${error.message}`)
 }
 
 // 分析执行
@@ -654,7 +623,7 @@ const startAnalysis = async () => {
 
     // 构建分析请求
     const analysisRequest = {
-      user_request: `对${configForm.systemName}进行TARA分析`,
+      user_request: `对${configForm.systemName}进行TARA威胁分析和风险评估`,
       context: {
         system_name: configForm.systemName,
         system_type: configForm.systemType,
@@ -663,52 +632,97 @@ const startAnalysis = async () => {
         interfaces: configForm.interfaces,
         data_types: configForm.dataTypes,
         standards: configForm.standards,
-        analysis_depth: configForm.analysisDepth
+        analysis_depth: configForm.analysisDepth,
+        analysis_type: 'tara'
       },
       timeout: 300,
-      stream: false
+      stream: false,
+      // 添加缺失的参数
+      priority: "normal",
+      metadata: {
+        source: "tara_ui",
+        version: "1.0"
+      },
+      enable_planning: true,
+      step_by_step: true,
+      chat_mode: false,
+      agent_config: {
+        model: "qwen3"
+      }
     }
 
     // 添加初始日志
     addLog('info', '开始TARA分析...')
+    addLog('info', `分析目标: ${configForm.systemName}`)
+    addLog('info', `分析深度: ${configForm.analysisDepth}`)
     
-    // 模拟分析过程
-    await simulateAnalysisProgress()
-
-    // 调用API执行分析
     try {
+      // 调用TARA智能体API执行分析
       const response = await agentsAPI.tara.analyze(analysisRequest)
       
-      if (response.data.success) {
-        analysisResult.value = response.data.result
+      if (response.data?.success) {
+        const result = response.data.result
+        
+        // 解析分析结果
+        if (typeof result === 'string') {
+          // 如果结果是字符串，尝试解析JSON
+          try {
+            analysisResult.value = JSON.parse(result)
+          } catch (parseError) {
+            // 如果无法解析为JSON，创建一个包装结果
+            analysisResult.value = {
+              summary: result,
+              threats: [],
+              mitigations: [],
+              compliance: [],
+              raw_output: result
+            }
+          }
+        } else if (typeof result === 'object') {
+          analysisResult.value = result
+        } else {
+          throw new Error('分析结果格式不正确')
+        }
+        
         executionProgress.value = 100
         executionStatus.value = 'success'
         currentStepText.value = '分析完成'
         addLog('success', 'TARA分析已完成')
         
+        // 记录结果统计
+        if (analysisResult.value.threats) {
+          addLog('info', `识别威胁: ${analysisResult.value.threats.length} 个`)
+        }
+        if (analysisResult.value.mitigations) {
+          addLog('info', `生成缓解措施: ${analysisResult.value.mitigations.length} 个`)
+        }
+        if (analysisResult.value.compliance) {
+          addLog('info', `合规检查: ${analysisResult.value.compliance.length} 项标准`)
+        }
+        
         // 渲染风险图表
-        nextTick(() => {
-          renderRiskChart()
-        })
-      } else {
-        throw new Error(response.data.error || '分析失败')
-      }
-    } catch (apiError) {
-      // 如果API调用失败，使用模拟数据进行演示
-      console.warn('API调用失败，使用模拟数据:', apiError)
-      addLog('warning', 'API连接失败，使用模拟数据进行演示')
-      
-      // 使用模拟的TARA分析结果
-      analysisResult.value = generateMockTARAResult()
-      executionProgress.value = 100
-      executionStatus.value = 'success'
-      currentStepText.value = '分析完成（演示模式）'
-      addLog('success', 'TARA分析已完成（演示模式）')
-      
-      // 渲染风险图表
-      nextTick(() => {
+        await nextTick()
         renderRiskChart()
-      })
+        
+      } else {
+        throw new Error(response.data?.error || response.data?.message || '分析失败')
+      }
+      
+    } catch (apiError) {
+      console.error('TARA分析API调用失败:', apiError)
+      executionStatus.value = 'exception'
+      addLog('error', `API调用失败: ${apiError.message}`)
+      
+      // 根据错误类型给出不同的提示
+      if (apiError.response?.status === 404) {
+        ElMessage.error('TARA智能体服务未启动，请联系管理员')
+      } else if (apiError.response?.status === 500) {
+        ElMessage.error('TARA智能体执行错误，请检查输入参数')
+      } else if (apiError.code === 'ECONNREFUSED') {
+        ElMessage.error('无法连接到后端服务，请检查网络连接')
+      } else {
+        ElMessage.error(`分析失败: ${apiError.message}`)
+      }
     }
 
   } catch (error) {
@@ -721,26 +735,166 @@ const startAnalysis = async () => {
   }
 }
 
-// 模拟分析进度
-const simulateAnalysisProgress = async () => {
-  const steps = [
-    { name: '需求解析', duration: 2000 },
-    { name: '威胁识别', duration: 3000 },
-    { name: '漏洞分析', duration: 2500 },
-    { name: '风险评估', duration: 3000 },
-    { name: '缓解建议', duration: 2000 },
-    { name: '合规检查', duration: 1500 }
-  ]
+// 流式分析执行
+const startStreamAnalysis = async () => {
+  try {
+    // 表单验证
+    const valid = await configFormRef.value.validate()
+    if (!valid) return
 
-  for (let i = 0; i < steps.length; i++) {
-    currentStep.value = i
-    currentStepText.value = `正在执行: ${steps[i].name}`
-    addLog('info', `开始${steps[i].name}...`)
+    isExecuting.value = true
+    showExecutionPanel.value = true
+    executionProgress.value = 0
+    currentStep.value = 0
+    executionLogs.value = []
+    analysisResult.value = null
+
+    // 构建分析请求
+    const analysisRequest = {
+      user_request: `对${configForm.systemName}进行TARA威胁分析和风险评估`,
+      context: {
+        system_name: configForm.systemName,
+        system_type: configForm.systemType,
+        system_description: configForm.systemDescription,
+        components: configForm.components,
+        interfaces: configForm.interfaces,
+        data_types: configForm.dataTypes,
+        standards: configForm.standards,
+        analysis_depth: configForm.analysisDepth,
+        analysis_type: 'tara'
+      },
+      timeout: 300,
+      stream: true
+    }
+
+    addLog('info', '开始流式TARA分析...')
     
-    await new Promise(resolve => setTimeout(resolve, steps[i].duration))
-    
-    executionProgress.value = ((i + 1) / steps.length) * 90
-    addLog('success', `${steps[i].name}完成`)
+    try {
+      // 使用流式API
+      const reader = await agentsAPI.tara.analyzeStream(analysisRequest)
+      
+      let buffer = ''
+      let stepProgress = 0
+      const maxSteps = 6 // 预期分析步骤数
+      
+      // 读取流式响应
+      while (true) {
+        const { done, value } = await reader.read()
+        
+        if (done) break
+        
+        // 解码响应数据
+        const chunk = new TextDecoder().decode(value)
+        buffer += chunk
+        
+        // 处理完整的行
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // 保留最后不完整的行
+        
+        for (const line of lines) {
+          if (line.trim().startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              handleStreamData(data)
+              
+              // 更新进度
+              if (data.type === 'step_completed') {
+                stepProgress++
+                executionProgress.value = (stepProgress / maxSteps) * 90
+              }
+            } catch (parseError) {
+              console.warn('流式数据解析失败:', parseError)
+            }
+          }
+        }
+      }
+      
+      // 完成分析
+      executionProgress.value = 100
+      executionStatus.value = 'success'
+      currentStepText.value = '流式分析完成'
+      addLog('success', '流式TARA分析已完成')
+      
+      // 渲染风险图表
+      await nextTick()
+      renderRiskChart()
+      
+    } catch (streamError) {
+      console.error('流式分析失败:', streamError)
+      executionStatus.value = 'exception'
+      addLog('error', `流式分析失败: ${streamError.message}`)
+      ElMessage.error(`流式分析失败: ${streamError.message}`)
+    }
+
+  } catch (error) {
+    console.error('流式TARA分析失败:', error)
+    executionStatus.value = 'exception'
+    addLog('error', `分析失败: ${error.message}`)
+    ElMessage.error(`分析失败: ${error.message}`)
+  } finally {
+    isExecuting.value = false
+  }
+}
+
+// 处理流式数据
+const handleStreamData = (data) => {
+  switch (data.type) {
+    case 'step_start':
+      currentStepText.value = `正在执行: ${data.step_name}`
+      addLog('info', `开始${data.step_name}...`)
+      break
+      
+    case 'step_progress':
+      if (data.message) {
+        addLog('info', data.message)
+      }
+      break
+      
+    case 'step_completed':
+      addLog('success', `${data.step_name}完成`)
+      if (data.result) {
+        // 逐步构建分析结果
+        if (!analysisResult.value) {
+          analysisResult.value = {
+            threats: [],
+            mitigations: [],
+            compliance: []
+          }
+        }
+        
+        // 根据步骤类型更新相应结果
+        if (data.step_name.includes('威胁') && data.result.threats) {
+          analysisResult.value.threats = data.result.threats
+        } else if (data.step_name.includes('缓解') && data.result.mitigations) {
+          analysisResult.value.mitigations = data.result.mitigations
+        } else if (data.step_name.includes('合规') && data.result.compliance) {
+          analysisResult.value.compliance = data.result.compliance
+        }
+      }
+      break
+      
+    case 'partial_result':
+      // 处理部分结果
+      if (data.threats) {
+        if (!analysisResult.value) analysisResult.value = {}
+        analysisResult.value.threats = data.threats
+        addLog('info', `发现威胁: ${data.threats.length} 个`)
+      }
+      if (data.mitigations) {
+        if (!analysisResult.value) analysisResult.value = {}
+        analysisResult.value.mitigations = data.mitigations
+        addLog('info', `生成缓解措施: ${data.mitigations.length} 个`)
+      }
+      break
+      
+    case 'error':
+      addLog('error', data.message || '执行过程中发生错误')
+      break
+      
+    default:
+      if (data.message) {
+        addLog('info', data.message)
+      }
   }
 }
 
@@ -888,9 +1042,23 @@ onMounted(() => {
 }
 
 .page-description {
-  margin: 0;
+  margin: 0 0 16px;
   color: var(--el-text-color-secondary);
   font-size: 14px;
+}
+
+.mode-switcher {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+}
+
+.chat-mode {
+  height: calc(100vh - 180px);
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .tara-content {

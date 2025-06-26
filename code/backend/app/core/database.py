@@ -47,4 +47,8 @@ async def init_database() -> None:
 
 async def close_database() -> None:
     """关闭数据库连接"""
-    await engine.dispose() 
+    await engine.dispose()
+
+
+# 为了兼容性添加get_db别名
+get_db = get_async_session

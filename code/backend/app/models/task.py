@@ -62,7 +62,7 @@ class Task(Base):
     input_data = Column(JSON, comment="输入数据")
     output_data = Column(JSON, comment="输出数据")
     plan = Column(JSON, comment="执行计划")
-    metadata = Column(JSON, comment="元数据")
+    task_metadata = Column(JSON, comment="任务元数据")
     
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
@@ -120,7 +120,7 @@ class Task(Base):
             "input_data": self.input_data,
             "output_data": self.output_data,
             "plan": self.plan,
-            "metadata": self.metadata,
+            "metadata": self.task_metadata,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "started_at": self.started_at.isoformat() if self.started_at else None,
@@ -140,7 +140,7 @@ class TaskBase(BaseModel):
     """任务基础模型"""
     title: str = Field(..., description="任务标题")
     description: Optional[str] = Field(None, description="任务描述")
-    priority: TaskPriority = Field(TaskPriority.NORMAL, description="优先级")
+    priority: TaskPriority = Field(TaskPriority.MEDIUM, description="优先级")
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="任务元数据")
 
 
@@ -189,13 +189,53 @@ class TaskResponse(TaskBase):
 
 # 智能体执行相关模型
 class AgentExecutionRequest(BaseModel):
-    """智能体执行请求模型"""
+    """智能体执行请求"""
     user_request: str = Field(..., description="用户请求内容")
-    context: Optional[Dict[str, Any]] = Field(default_factory=dict, description="执行上下文")
-    timeout: Optional[int] = Field(300, description="超时时间(秒)")
-    stream: bool = Field(False, description="是否启用流式响应")
-    priority: TaskPriority = Field(TaskPriority.NORMAL, description="优先级")
-    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="请求元数据")
+    context: Optional[Dict[str, Any]] = Field(default=None, description="执行上下文")
+    timeout: Optional[int] = Field(default=300, description="超时时间(秒)")
+    priority: Optional[str] = Field(default="normal", description="优先级")
+    metadata: Optional[Dict[str, Any]] = Field(default=None, description="请求元数据")
+    
+    # 新增：智能规划相关参数
+    enable_planning: Optional[bool] = Field(default=False, description="启用智能步骤分配")
+    step_by_step: Optional[bool] = Field(default=False, description="启用步骤化执行")
+    chat_mode: Optional[bool] = Field(default=False, description="启用聊天模式")
+    stream: Optional[bool] = Field(default=False, description="启用流式响应")
+    
+    # 新增：智能体特定配置
+    agent_config: Optional[Dict[str, Any]] = Field(default=None, description="智能体特定配置")
+    
+class PlanStep(BaseModel):
+    """执行步骤"""
+    step_id: str
+    title: str
+    description: str
+    tools: Optional[List[str]] = None
+    status: str = "pending"  # pending, running, completed, failed
+    progress: Optional[int] = None
+    result: Optional[Dict[str, Any]] = None
+    
+class ExecutionPlan(BaseModel):
+    """执行计划"""
+    plan_id: str
+    description: str
+    steps: List[PlanStep]
+    total_steps: int
+    completed_steps: int = 0
+    
+class StreamEvent(BaseModel):
+    """流式事件"""
+    event_type: str  # planning, step_start, step_progress, step_completed, result, error
+    timestamp: str
+    data: Dict[str, Any]
+    
+class ChatMessage(BaseModel):
+    """聊天消息"""
+    message_id: str
+    type: str  # user, agent, system
+    content: str
+    timestamp: str
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class AgentExecutionResponse(BaseModel):
@@ -273,7 +313,7 @@ class BatchStatus(BaseModel):
 
 
 # 工作流相关模型
-class WorkflowStatus(str, Enum):
+class WorkflowStatus(str, PyEnum):
     """工作流状态枚举"""
     IDLE = "idle"
     RUNNING = "running"

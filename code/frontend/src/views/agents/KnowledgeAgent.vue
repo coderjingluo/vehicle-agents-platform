@@ -1,51 +1,82 @@
 <template>
-  <div class="knowledge-agent">
-    <div class="page-header">
-      <h1 class="page-title">
-        <el-icon><Search /></el-icon>
-        知识库智能体
-      </h1>
-      <p class="page-description">智能知识问答与检索</p>
+  <div class="knowledge-agent-container">
+    <h1>知识库智能体</h1>
+    <p>这个页面将实现知识库查询和知识管理功能。</p>
+    
+    <!-- 知识查询表单 -->
+    <div class="query-form">
+      <el-form :model="queryParams" label-width="120px">
+        <el-form-item label="查询内容">
+          <el-input 
+            v-model="queryParams.user_request" 
+            type="textarea" 
+            rows="3"
+            placeholder="输入您的知识查询"
+          />
+        </el-form-item>
+        
+        <el-form-item label="知识库">
+          <el-select v-model="queryParams.context.knowledge_base_id" placeholder="选择知识库">
+            <el-option label="车联网安全标准库" value="auto_security_standards" />
+            <el-option label="测试用例库" value="test_case_repository" />
+          </el-select>
+        </el-form-item>
+        
+        <el-form-item>
+          <el-button type="primary" @click="queryKnowledge">查询知识</el-button>
+        </el-form-item>
+      </el-form>
     </div>
-
-    <el-empty description="知识库智能体功能开发中...">
-      <el-button type="primary" @click="$router.push('/')">返回首页</el-button>
-    </el-empty>
   </div>
 </template>
 
 <script setup>
-import { Search } from '@element-plus/icons-vue'
+import { ref } from 'vue'
+import { agentsAPI } from '@/api'
+
+// 查询参数
+const queryParams = ref({
+  user_request: "",
+  context: {
+    knowledge_base_id: "auto_security_standards",
+    query_type: "semantic",
+    top_k: 5,
+    score_threshold: 0.7
+  },
+  timeout: 180,
+  stream: true,
+  // 添加缺失的参数
+  priority: "normal",
+  metadata: {
+    source: "knowledge_ui",
+    version: "1.0"
+  },
+  enable_planning: true,
+  step_by_step: true,
+  chat_mode: true,
+  agent_config: {
+    model: "default"
+  }
+})
+
+// 查询知识方法
+const queryKnowledge = async () => {
+  try {
+    const response = await agentsAPI.executeAgent('knowledge', queryParams.value)
+    console.log('知识查询结果:', response.data)
+  } catch (error) {
+    console.error('知识查询失败:', error)
+  }
+}
 </script>
 
 <style scoped>
-.knowledge-agent {
-  padding: 0;
+.knowledge-agent-container {
+  padding: 20px;
 }
 
-.page-header {
-  margin-bottom: 24px;
-  padding: 0 4px;
-}
-
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin: 0 0 8px;
-}
-
-.page-title .el-icon {
-  font-size: 32px;
-  color: var(--el-color-primary);
-}
-
-.page-description {
-  margin: 0;
-  color: var(--el-text-color-secondary);
-  font-size: 14px;
+.query-form {
+  max-width: 600px;
+  margin-top: 20px;
 }
 </style>

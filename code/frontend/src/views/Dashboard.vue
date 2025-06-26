@@ -29,106 +29,80 @@
       <!-- 聊天头部 -->
       <div class="chat-header">
         <div class="chat-info">
-          <h2>KunlunSec</h2>
-          <p>Step 6 (25.5k input, 159 completion)</p>
+          <h2>车联网安全测试助手</h2>
+          <p>智能体协作工作流平台</p>
         </div>
         <div class="chat-actions">
-          <el-button text class="action-btn">
+          <el-button text class="action-btn" @click="startNewTask">
             <el-icon><Plus /></el-icon>
             New Task
           </el-button>
-          <el-button text class="action-btn">
+          <el-button text class="action-btn" @click="shareCurrentChat">
             <el-icon><Share /></el-icon>
             Share
+          </el-button>
+          <el-button text class="action-btn" @click="showToolsConfig">
+            <el-icon><Setting /></el-icon>
+            Tool Config
           </el-button>
         </div>
       </div>
 
-      <!-- 消息列表 -->
-      <div class="messages-container" ref="messagesContainer">
-        <div class="messages-list">
-          <div v-for="message in messages" :key="message.id" class="message-wrapper">
-            <!-- 用户消息 -->
-            <div v-if="message.type === 'user'" class="message user-message">
-              <div class="message-content">
-                <div class="message-text">{{ message.content }}</div>
-              </div>
+      <!-- 智能体选择器 -->
+      <div class="agent-selector">
+        <el-select 
+          v-model="currentAgent" 
+          placeholder="选择智能体" 
+          @change="onAgentChange"
+          class="agent-select"
+        >
+          <el-option
+            v-for="agent in availableAgents"
+            :key="agent.value"
+            :label="agent.label"
+            :value="agent.value"
+          >
+            <div class="agent-option">
+              <el-icon :class="agent.icon"></el-icon>
+              <span>{{ agent.label }}</span>
             </div>
-
-            <!-- AI回复 -->
-            <div v-else class="message ai-message">
-              <div class="message-header">
-                <div class="ai-info">
-                  <div class="ai-avatar">
-                    <span>★</span>
-                  </div>
-                  <span class="ai-name">KunlunSec</span>
-                </div>
-                <div class="message-meta">{{ formatTime(message.timestamp) }}</div>
-              </div>
-              <div class="message-content">
-                <div class="message-text" v-html="message.content"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- AI正在输入 -->
-          <div v-if="isTyping" class="message ai-message typing">
-            <div class="message-header">
-              <div class="ai-info">
-                <div class="ai-avatar">
-                  <span>★</span>
-                </div>
-                <span class="ai-name">KunlunSec</span>
-              </div>
-            </div>
-            <div class="message-content">
-              <div class="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </div>
-          </div>
-        </div>
+          </el-option>
+        </el-select>
+        
+        <el-tag 
+          :type="getAgentStatusType(agentStatus)" 
+          size="small"
+          class="agent-status-tag"
+        >
+          {{ getAgentStatusText(agentStatus) }}
+        </el-tag>
       </div>
 
-      <!-- 输入区域 -->
-      <div class="input-area">
-        <div class="input-wrapper">
-          <el-input
-            v-model="currentMessage"
-            type="textarea"
-            :autosize="{ minRows: 1, maxRows: 6 }"
-            placeholder="请描述您需要的网络安全分析任务..."
-            class="message-input"
-            @keydown.enter.exact.prevent="sendMessage"
-            @keydown.ctrl.enter.exact="addNewLine"
-          />
-          <div class="input-actions">
-            <el-button 
-              text 
-              class="config-btn"
-              @click="showToolsConfig"
-              title="工具配置"
-            >
-              <el-icon><Setting /></el-icon>
-            </el-button>
-            <el-button 
-              type="primary" 
-              :disabled="!currentMessage.trim() || isTyping"
-              @click="sendMessage"
-              class="send-btn"
-            >
-              <el-icon><Promotion /></el-icon>
-            </el-button>
-          </div>
-        </div>
-        <div class="input-hint">
-          使用 ⌘+L 快速提问 • ⌘+K 搜索 • Ctrl+Enter 换行
-        </div>
+      <!-- AgentChat组件 -->
+      <div class="agent-chat-container">
+        <AgentChat 
+          ref="agentChatRef"
+          :agent-type="currentAgent"
+          :initial-context="getCurrentAgentContext()"
+          @execution-start="onAgentExecutionStart"
+          @execution-complete="onAgentExecutionComplete"
+          @execution-error="onAgentExecutionError"
+          :key="`${currentAgent}-${agentContextVersion}`"
+        />
       </div>
     </div>
+
+    <!-- Models Configuration 对话框 -->
+    <el-dialog
+      v-model="modelsConfigVisible"
+      title="Models"
+      width="700px"
+      :show-close="true"
+      class="models-config-dialog"
+      :modal-class="'models-config-modal'"
+    >
+      <ModelsConfig @apply="applyModelsConfig" @close="modelsConfigVisible = false" />
+    </el-dialog>
 
     <!-- Tools Configuration 对话框 -->
     <el-dialog
@@ -145,167 +119,520 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
-import { Clock, Plus, Share, Promotion, Setting } from '@element-plus/icons-vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { 
+  Clock, Plus, Share, Promotion, Setting, Monitor,
+  Lock, DocumentChecked, VideoPlay, Document, Search
+} from '@element-plus/icons-vue'
 import ToolsConfig from '../components/common/ToolsConfig.vue'
+import ModelsConfig from '../components/common/ModelsConfig.vue'
+import AgentChat from '../components/common/AgentChat.vue'
+
+// API imports
+import workflowAPI from '../api/modules/workflow'
+import systemAPI from '../api/modules/system'
+import agentsAPI from '../api/modules/agents'
+import { WEBSOCKET_URL } from '../api'
 
 // 响应式数据
-const currentMessage = ref('')
-const isTyping = ref(false)
-const currentTaskId = ref(1)
-const messagesContainer = ref(null)
+const currentTaskId = ref(null)
+const agentChatRef = ref(null)
 const toolsConfigVisible = ref(false)
+const modelsConfigVisible = ref(false)
 
-// 最近任务列表
-const recentTasks = ref([
-  {
-    id: 1,
-    title: '通过我们的ctf知识进行...',
-    preview: '请帮我们通过我们的ctf知识进行渗透测试或者分析这个靶机'
+// AgentChat相关数据
+const currentAgent = ref('tara')
+const agentStatus = ref('ready')
+const agentContextVersion = ref(0)
+
+// 数据状态
+const loading = ref(false)
+const recentTasks = ref([])
+const systemStatus = ref(null)
+const workflowExecutions = ref([])
+
+// 可用智能体列表
+const availableAgents = ref([
+  { 
+    value: 'tara', 
+    label: 'TARA智能体', 
+    icon: 'Lock',
+    description: '威胁分析与风险评估'
   },
-  {
-    id: 2,
-    title: '通过我们的ctf知识进行...',
-    preview: '在这个任务中，我需要你帮助分析网络安全相关的问题'
+  { 
+    value: 'test_case', 
+    label: '测试用例智能体', 
+    icon: 'DocumentChecked',
+    description: '智能生成测试用例'
   },
-  {
-    id: 3,
-    title: 'pwn分析，本地搭建环境...',
-    preview: 'pwn分析，本地搭建环境，需要完成二进制漏洞利用分析'
+  { 
+    value: 'automation_test', 
+    label: '自动化测试智能体', 
+    icon: 'VideoPlay',
+    description: '自动化测试执行'
   },
-  {
-    id: 4,
-    title: '安全requirements分析...',
-    preview: '对目标系统进行全面的安全需求分析和风险评估'
+  { 
+    value: 'report_analysis', 
+    label: '报告分析智能体', 
+    icon: 'Document',
+    description: '测试报告分析'
   },
-  {
-    id: 5,
-    title: '漏洞扫描和检测...',
-    preview: '使用自动化工具对Web应用进行漏洞扫描'
-  },
-  {
-    id: 6,
-    title: '网络流量分析...',
-    preview: '分析网络数据包，查找异常流量和潜在威胁'
+  { 
+    value: 'knowledge_base', 
+    label: '知识库智能体', 
+    icon: 'Search',
+    description: '知识库搜索与学习'
   }
 ])
 
-// 聊天消息
-const messages = ref([
-  {
-    id: 1,
-    type: 'user',
-    content: '当前状态：已登录获取到用户，漏洞扫描已完成，需要执行：netstat -ano 检查网络连接',
-    timestamp: new Date(Date.now() - 300000)
-  },
-  {
-    id: 2,
-    type: 'assistant',
-    content: '我理解您需要检查当前系统的网络连接状态。我将执行 `netstat -ano` 命令来获取详细的网络连接信息，包括监听端口和进程信息。\n\n让我为您执行这个命令：',
-    timestamp: new Date(Date.now() - 240000)
-  },
-  {
-    id: 3,
-    type: 'user',
-    content: '立即执行以下任务：执行 netstat /query /fo LIST 命令，检查系统网络连接状况。',
-    timestamp: new Date(Date.now() - 60000)
-  },
-  {
-    id: 4,
-    type: 'assistant',
-    content: '我正在为您执行网络连接检查命令。让我使用 `schtasks /query /fo LIST` 来查看系统任务，然后进行网络状态分析：\n\n执行任务下列表：',
-    timestamp: new Date(Date.now() - 30000)
-  }
-])
+// WebSocket连接
+let websocket = null
 
-// 方法
-const selectTask = (task) => {
-  currentTaskId.value = task.id
-  // 可以在这里加载特定任务的聊天历史
+// 计算属性
+const hasActiveTasks = computed(() => recentTasks.value.length > 0)
+const isSystemHealthy = computed(() => systemStatus.value?.status === 'healthy')
+
+// 获取最近任务
+const fetchRecentTasks = async () => {
+  try {
+    const response = await workflowAPI.getExecutionHistory({ limit: 10 })
+    if (response.data?.success) {
+      recentTasks.value = response.data.executions.map(exec => ({
+        id: exec.execution_id,
+        title: exec.workflow_name || '工作流执行',
+        preview: exec.description || exec.initial_request?.slice(0, 50) + '...',
+        status: exec.status,
+        timestamp: exec.created_at,
+        type: exec.workflow_type || 'general'
+      }))
+    }
+  } catch (error) {
+    console.error('获取最近任务失败:', error)
+    ElMessage.error('获取最近任务失败')
+  }
 }
 
-const sendMessage = async () => {
-  if (!currentMessage.value.trim() || isTyping.value) return
-
-  // 添加用户消息
-  const userMessage = {
-    id: Date.now(),
-    type: 'user',
-    content: currentMessage.value.trim(),
-    timestamp: new Date()
+// 获取系统状态
+const fetchSystemStatus = async () => {
+  try {
+    const response = await systemAPI.healthCheck()
+    systemStatus.value = response.data
+  } catch (error) {
+    console.error('获取系统状态失败:', error)
+    systemStatus.value = { status: 'error', message: '系统状态检查失败' }
   }
-  messages.value.push(userMessage)
+}
 
-  const messageText = currentMessage.value.trim()
-  currentMessage.value = ''
-
-  // 滚动到底部
-  await nextTick()
-  scrollToBottom()
-
-  // 模拟AI响应
-  isTyping.value = true
-  setTimeout(async () => {
-    const aiResponse = generateAIResponse(messageText)
-    messages.value.push({
-      id: Date.now(),
-      type: 'assistant',
-      content: aiResponse,
-      timestamp: new Date()
-    })
-    isTyping.value = false
+// 选择任务
+const selectTask = async (task) => {
+  if (currentTaskId.value === task.id) return
+  
+  currentTaskId.value = task.id
+  loading.value = true
+  
+  try {
+    // 获取任务详情和消息历史
+    const response = await workflowAPI.getExecutionDetail(task.id)
+    if (response.data?.success) {
+      const execution = response.data.execution
+      
+      // 转换执行步骤为聊天消息格式
+      messages.value = []
+      
+      // 添加初始用户请求
+      if (execution.initial_request) {
+        messages.value.push({
+          id: 'initial',
+          type: 'user',
+          content: execution.initial_request,
+          timestamp: new Date(execution.created_at)
+        })
+      }
+      
+      // 添加执行步骤
+      if (execution.steps && execution.steps.length > 0) {
+        execution.steps.forEach((step, index) => {
+          messages.value.push({
+            id: `step-${index}`,
+            type: 'assistant',
+            content: formatExecutionStep(step),
+            timestamp: new Date(step.timestamp || execution.created_at),
+            stepType: step.step_type,
+            status: step.status
+          })
+        })
+      }
+      
+      // 添加最终结果
+      if (execution.result) {
+        messages.value.push({
+          id: 'result',
+          type: 'assistant',
+          content: formatExecutionResult(execution.result),
+          timestamp: new Date(execution.updated_at),
+          isResult: true
+        })
+      }
+    }
+  } catch (error) {
+    console.error('获取任务详情失败:', error)
+    ElMessage.error('获取任务详情失败')
+  } finally {
+    loading.value = false
     await nextTick()
     scrollToBottom()
-  }, 2000)
-}
-
-const addNewLine = () => {
-  currentMessage.value += '\n'
-}
-
-const generateAIResponse = (userMessage) => {
-  const responses = {
-    '网络': '我将帮您分析网络安全状况。让我执行相关的网络检测命令来获取详细信息。',
-    '漏洞': '正在进行漏洞扫描和分析。我会使用专业的安全工具来识别潜在的安全风险。',
-    'netstat': '正在执行网络连接检查命令 `netstat -ano`，这将显示所有活动的网络连接和监听端口。',
-    'pwn': '开始进行二进制漏洞分析。我将设置本地调试环境并分析目标二进制文件的安全漏洞。',
-    '扫描': '启动自动化安全扫描程序。正在检测目标系统的开放端口、服务版本和潜在漏洞。'
   }
+}
 
-  const message = userMessage.toLowerCase()
-  for (const [key, response] of Object.entries(responses)) {
-    if (message.includes(key)) {
-      return response
+// 格式化执行步骤
+const formatExecutionStep = (step) => {
+  let content = `**${step.step_type}**: ${step.description}\n\n`
+  
+  if (step.agent_type) {
+    content += `**执行智能体**: ${step.agent_type}\n`
+  }
+  
+  if (step.input) {
+    content += `**输入**: ${typeof step.input === 'string' ? step.input : JSON.stringify(step.input, null, 2)}\n`
+  }
+  
+  if (step.output) {
+    content += `**输出**: ${typeof step.output === 'string' ? step.output : JSON.stringify(step.output, null, 2)}\n`
+  }
+  
+  if (step.error) {
+    content += `**错误**: ${step.error}\n`
+  }
+  
+  content += `**状态**: ${step.status} | **耗时**: ${step.execution_time || 0}ms`
+  
+  return content
+}
+
+// 格式化执行结果
+const formatExecutionResult = (result) => {
+  if (typeof result === 'string') {
+    return result
+  }
+  
+  let content = '## 执行结果\n\n'
+  
+  if (result.summary) {
+    content += `**总结**: ${result.summary}\n\n`
+  }
+  
+  if (result.outputs) {
+    content += '**详细输出**:\n```json\n' + JSON.stringify(result.outputs, null, 2) + '\n```\n\n'
+  }
+  
+  if (result.metrics) {
+    content += `**性能指标**: 总耗时 ${result.metrics.total_time}ms, 成功步骤 ${result.metrics.successful_steps}/${result.metrics.total_steps}\n`
+  }
+  
+  return content
+}
+
+// AgentChat相关方法
+const getCurrentAgentContext = () => {
+  // 根据当前选择的智能体返回相应的上下文
+  const agentContexts = {
+    'tara': {
+      system_name: '车载网关系统',
+      system_type: 'gateway',
+      analysis_depth: 'comprehensive',
+      standards: ['iso21434', 'sae_j3061']
+    },
+    'test_case': {
+      system_info: '车载T-Box系统',
+      test_types: ['security', 'penetration'],
+      test_depth: 'standard',
+      priority_filter: ['high', 'medium']
+    },
+    'automation_test': {
+      target_system: '车载IVI系统',
+      test_framework: 'pytest',
+      execution_mode: 'automated'
+    },
+    'report_analysis': {
+      report_type: 'vulnerability_scan',
+      analysis_scope: 'comprehensive'
+    },
+    'knowledge_base': {
+      search_scope: 'automotive_security',
+      query_type: 'semantic'
     }
   }
-
-  return `我正在分析您的请求："${userMessage}"。请稍等，我将为您提供详细的安全分析结果。`
+  
+  return agentContexts[currentAgent.value] || {}
 }
 
+const onAgentChange = (agentType) => {
+  console.log('切换智能体:', agentType)
+  agentStatus.value = 'ready'
+  agentContextVersion.value++
+  ElMessage.info(`已切换到${availableAgents.value.find(a => a.value === agentType)?.label}`)
+}
+
+const onAgentExecutionStart = () => {
+  agentStatus.value = 'busy'
+  ElMessage.info(`${availableAgents.value.find(a => a.value === currentAgent.value)?.label}开始执行...`)
+}
+
+const onAgentExecutionComplete = () => {
+  agentStatus.value = 'ready'
+  ElMessage.success('智能体执行完成')
+  
+  // 刷新任务列表
+  fetchRecentTasks()
+}
+
+const onAgentExecutionError = (error) => {
+  agentStatus.value = 'error'
+  ElMessage.error(`智能体执行失败: ${error.message || error}`)
+}
+
+const getAgentStatusType = (status) => {
+  const statusTypes = {
+    'ready': 'success',
+    'busy': 'warning', 
+    'error': 'danger'
+  }
+  return statusTypes[status] || 'info'
+}
+
+const getAgentStatusText = (status) => {
+  const statusTexts = {
+    'ready': '就绪',
+    'busy': '忙碌',
+    'error': '错误'
+  }
+  return statusTexts[status] || '未知'
+}
+
+// 新任务
+const startNewTask = () => {
+  if (agentChatRef.value) {
+    agentChatRef.value.clearChat()
+    ElMessage.info('已清空对话，开始新任务')
+  }
+}
+
+// 分享当前对话
+const shareCurrentChat = () => {
+  ElMessage.info('分享功能开发中...')
+}
+
+// 监听工作流执行
+const monitorExecution = async (executionId) => {
+  try {
+    // 使用WebSocket监听实时进度
+    if (websocket) {
+      websocket.send(JSON.stringify({
+        type: 'monitor_execution',
+        execution_id: executionId
+      }))
+    }
+    
+    // 轮询获取执行状态
+    let completed = false
+    const maxAttempts = 60 // 最多等待5分钟
+    let attempts = 0
+    
+    while (!completed && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 5000)) // 等待5秒
+      
+      try {
+        const statusResponse = await workflowAPI.getExecutionStatus(executionId)
+        if (statusResponse.data?.success) {
+          const execution = statusResponse.data.execution
+          
+          // 添加进度消息
+          if (execution.current_step) {
+            const progressMessage = {
+              id: `progress-${Date.now()}`,
+              type: 'assistant',
+              content: `正在执行: ${execution.current_step}`,
+              timestamp: new Date(),
+              isProgress: true
+            }
+            
+            // 更新或添加进度消息
+            const existingIndex = messages.value.findIndex(m => m.isProgress && !m.isCompleted)
+            if (existingIndex >= 0) {
+              messages.value[existingIndex] = progressMessage
+            } else {
+              messages.value.push(progressMessage)
+            }
+            
+            await nextTick()
+            scrollToBottom()
+          }
+          
+          // 检查是否完成
+          if (['completed', 'failed', 'cancelled'].includes(execution.status)) {
+            completed = true
+            
+            // 标记进度消息为完成
+            const progressMsg = messages.value.find(m => m.isProgress && !m.isCompleted)
+            if (progressMsg) {
+              progressMsg.isCompleted = true
+            }
+            
+            // 添加最终结果
+            const resultContent = execution.status === 'completed' 
+              ? formatExecutionResult(execution.result)
+              : `执行${execution.status === 'failed' ? '失败' : '被取消'}: ${execution.error || '未知原因'}`
+            
+            messages.value.push({
+              id: `result-${executionId}`,
+              type: 'assistant',
+              content: resultContent,
+              timestamp: new Date(),
+              isResult: true,
+              status: execution.status
+            })
+          }
+        }
+      } catch (error) {
+        console.error('获取执行状态失败:', error)
+        break
+      }
+      
+      attempts++
+    }
+    
+    if (!completed) {
+      ElMessage.warning('执行监控超时，请手动刷新查看结果')
+    }
+    
+  } catch (error) {
+    console.error('监听执行失败:', error)
+  }
+}
+
+// 初始化WebSocket连接
+const initWebSocket = () => {
+  // 暂时禁用WebSocket连接，后端未实现相关功能
+  console.log('WebSocket功能暂未实现，跳过连接');
+  
+  /* 
+  try {
+    const wsUrl = `${WEBSOCKET_URL}/workflow`
+    websocket = new WebSocket(wsUrl)
+    
+    websocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        handleWebSocketMessage(data)
+      } catch (error) {
+        console.error('WebSocket消息解析失败:', error)
+      }
+    }
+    
+    websocket.onerror = (error) => {
+      console.error('WebSocket连接错误:', error)
+    }
+    
+    websocket.onclose = () => {
+      console.log('WebSocket连接已关闭')
+      // 可以在这里实现重连逻辑
+    }
+  } catch (error) {
+    console.error('WebSocket初始化失败:', error)
+  }
+  */
+}
+
+// 处理WebSocket消息
+const handleWebSocketMessage = (data) => {
+  if (data.type === 'execution_progress') {
+    // 更新执行进度
+    const progressMessage = {
+      id: `ws-progress-${Date.now()}`,
+      type: 'assistant',
+      content: data.message || `执行进度: ${data.progress}%`,
+      timestamp: new Date(),
+      isProgress: true
+    }
+    
+    messages.value.push(progressMessage)
+    nextTick(() => scrollToBottom())
+  } else if (data.type === 'execution_completed') {
+    // 执行完成
+    fetchRecentTasks() // 刷新任务列表
+  }
+}
+
+// 其他方法
 const formatTime = (timestamp) => {
   return new Intl.DateTimeFormat('zh-CN', {
     hour: '2-digit',
     minute: '2-digit'
-  }).format(timestamp)
-}
-
-const scrollToBottom = () => {
-  if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-  }
+  }).format(new Date(timestamp))
 }
 
 const showToolsConfig = () => {
   toolsConfigVisible.value = true
 }
 
-const applyToolsConfig = () => {
-  // 实现工具配置应用逻辑
+const applyToolsConfig = (config) => {
+  ElMessage.success('工具配置已应用')
+  toolsConfigVisible.value = false
+}
+
+const showModelsConfig = () => {
+  modelsConfigVisible.value = true
+}
+
+const applyModelsConfig = (config) => {
+  ElMessage.success('模型配置已应用')
+  modelsConfigVisible.value = false
+}
+
+// 定期刷新系统状态
+const startStatusPolling = () => {
+  const interval = setInterval(async () => {
+    await fetchSystemStatus()
+  }, 30000) // 每30秒刷新一次
+  
+  return interval
 }
 
 // 生命周期
-onMounted(() => {
-  scrollToBottom()
+onMounted(async () => {
+  loading.value = true
+  
+  try {
+    // 并行获取初始数据
+    await Promise.all([
+      fetchRecentTasks(),
+      fetchSystemStatus()
+    ])
+    
+    // 初始化WebSocket连接
+    initWebSocket()
+    
+    // 开始状态轮询
+    const statusInterval = startStatusPolling()
+    
+    // 保存定时器引用用于清理
+    onUnmounted(() => {
+      clearInterval(statusInterval)
+      // WebSocket暂未实现，不需要关闭连接
+      /*
+      if (websocket) {
+        websocket.close()
+      }
+      */
+    })
+    
+  } catch (error) {
+    console.error('初始化失败:', error)
+    ElMessage.error('Dashboard初始化失败')
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
@@ -447,6 +774,55 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.05);
 }
 
+/* ========== 智能体选择器 ========== */
+.agent-selector {
+  padding: 12px 20px;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.agent-select {
+  flex: 1;
+  max-width: 300px;
+}
+
+.agent-select :deep(.el-input__wrapper) {
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  color: #cccccc;
+}
+
+.agent-select :deep(.el-input__inner) {
+  color: #cccccc;
+}
+
+.agent-select :deep(.el-select__popper) {
+  background: #2d2d30;
+  border: 1px solid #3c3c3c;
+}
+
+.agent-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-status-tag {
+  font-size: 11px;
+  border: none;
+  font-weight: 500;
+}
+
+/* ========== AgentChat容器 ========== */
+.agent-chat-container {
+  flex: 1;
+  background: #1e1e1e;
+  overflow: hidden;
+}
+
 /* 消息区域 */
 .messages-container {
   flex: 1;
@@ -576,86 +952,52 @@ onMounted(() => {
   }
 }
 
-/* ========== 输入区域 ========== */
-.input-area {
+/* AgentChat组件内部处理输入区域样式 */
+
+/* Models Configuration 对话框样式 */
+:deep(.models-config-modal) {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+:deep(.models-config-dialog) {
   background: #252526;
-  border-top: 1px solid #3c3c3c;
-  padding: 16px 20px;
-}
-
-.input-wrapper {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.message-input {
-  flex: 1;
-}
-
-.message-input :deep(.el-textarea__inner) {
-  background: #1e1e1e;
   border: 1px solid #3c3c3c;
-  color: #cccccc;
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 14px;
-  line-height: 1.5;
-  resize: none;
+  border-radius: 8px;
 }
 
-.message-input :deep(.el-textarea__inner):focus {
-  border-color: #007acc;
-  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+:deep(.models-config-dialog .el-dialog__header) {
+  background: #2c2c2c;
+  border-bottom: 1px solid #3c3c3c;
+  padding: 16px 20px;
+  border-radius: 8px 8px 0 0;
 }
 
-.config-btn {
-  height: 40px;
-  width: 40px;
-  border-radius: 50%;
-  background: #464647;
-  border: 1px solid #6c6c6c;
+:deep(.models-config-dialog .el-dialog__title) {
   color: #cccccc;
   font-size: 16px;
-  flex-shrink: 0;
-  margin-right: 8px;
+  font-weight: 600;
 }
 
-.config-btn:hover {
-  background: #6c6c6c;
-  border-color: #007acc;
-  color: #ffffff;
+:deep(.models-config-dialog .el-dialog__headerbtn) {
+  top: 16px;
+  right: 20px;
 }
 
-.send-btn {
-  height: 40px;
-  width: 40px;
-  border-radius: 50%;
-  background: #007acc;
-  border: none;
+:deep(.models-config-dialog .el-dialog__headerbtn .el-dialog__close) {
+  color: #9d9d9d;
   font-size: 16px;
-  flex-shrink: 0;
 }
 
-.send-btn:hover {
-  background: #005a99;
+:deep(.models-config-dialog .el-dialog__headerbtn .el-dialog__close:hover) {
+  color: #cccccc;
 }
 
-.send-btn:disabled {
-  background: #464647;
-  color: #6c6c6c;
-}
-
-.input-hint {
-  font-size: 11px;
-  color: #6c6c6c;
-  text-align: center;
-  margin-top: 8px;
-  max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
+:deep(.models-config-dialog .el-dialog__body) {
+  padding: 0;
+  background: #252526;
+  max-height: 70vh;
+  overflow: hidden;
+  border-radius: 0 0 8px 8px;
 }
 
 /* Tools Configuration 对话框样式 */

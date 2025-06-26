@@ -22,7 +22,12 @@ class TestCaseAgent(BaseAgent):
     """测试用例智能体"""
     
     def __init__(self):
-        super().__init__()
+        agent_id = str(uuid.uuid4())
+        super().__init__(
+            agent_id=agent_id,
+            name="测试用例智能体",
+            description="基于TARA分析结果生成测试用例，支持多种测试标准和框架"
+        )
         self.agent_type = AgentType.TEST_CASE
         self.test_standards = {
             "ISO_21434": "道路车辆网络安全工程",
@@ -74,23 +79,19 @@ class TestCaseAgent(BaseAgent):
             if "steps" in plan_data:
                 for step_data in plan_data["steps"]:
                     step = AgentStep(
-                        id=str(uuid.uuid4()),
+                        step_id=str(uuid.uuid4()),
                         name=step_data.get("name", "Unknown Step"),
                         description=step_data.get("description", ""),
-                        tool_calls=step_data.get("tools", []),
-                        expected_output=step_data.get("expected_output", ""),
-                        success_criteria=step_data.get("success_criteria", ""),
-                        status="pending"
+                        tool_name=step_data.get("tool_name", None),
+                        parameters=step_data.get("parameters", {}),
+                        dependencies=step_data.get("dependencies", [])
                     )
                     steps.append(step)
             
             return AgentPlan(
-                id=str(uuid.uuid4()),
-                agent_type=self.agent_type,
+                plan_id=str(uuid.uuid4()),
                 description=plan_data.get("description", "测试用例生成计划"),
-                steps=steps,
-                estimated_duration=plan_data.get("estimated_duration", 30),
-                created_at=datetime.utcnow()
+                steps=steps
             )
             
         except Exception as e:
@@ -102,50 +103,43 @@ class TestCaseAgent(BaseAgent):
         """获取默认的测试用例生成计划"""
         default_steps = [
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="TARA结果分析",
                 description="分析威胁和风险评估结果，识别需要测试的安全威胁",
-                tool_calls=["tara_analyzer"],
-                expected_output="威胁清单和风险等级分析",
-                success_criteria="成功识别所有高危威胁",
-                status="pending"
+                tool_name="tara_analyzer",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="测试策略制定",
                 description="基于威胁分析结果制定测试策略和方法",
-                tool_calls=["test_strategy_generator"],
-                expected_output="测试策略文档",
-                success_criteria="覆盖所有识别的威胁",
-                status="pending"
+                tool_name="test_strategy_generator",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="测试用例设计",
                 description="设计具体的测试用例，包括确认测试和验证测试",
-                tool_calls=["test_case_designer"],
-                expected_output="详细的测试用例文档",
-                success_criteria="测试用例完整且可执行",
-                status="pending"
+                tool_name="test_case_designer",
+                parameters={},
+                dependencies=[]
             ),
             AgentStep(
-                id=str(uuid.uuid4()),
+                step_id=str(uuid.uuid4()),
                 name="测试覆盖率验证",
                 description="验证测试用例的覆盖率是否满足要求",
-                tool_calls=["coverage_analyzer"],
-                expected_output="测试覆盖率报告",
-                success_criteria="覆盖率达到90%以上",
-                status="pending"
+                tool_name="coverage_analyzer",
+                parameters={},
+                dependencies=[]
             )
         ]
         
         return AgentPlan(
-            id=str(uuid.uuid4()),
-            agent_type=self.agent_type,
+            plan_id=str(uuid.uuid4()),
             description="标准测试用例生成流程",
-            steps=default_steps,
-            estimated_duration=25,
-            created_at=datetime.utcnow()
+            steps=default_steps
         )
     
     async def execute_step(self, step: AgentStep, context: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -170,7 +164,7 @@ class TestCaseAgent(BaseAgent):
             return {
                 "success": False,
                 "error": str(e),
-                "step_id": step.id,
+                "step_id": step.step_id,
                 "timestamp": datetime.utcnow().isoformat()
             }
     
@@ -202,7 +196,7 @@ TARA分析结果:
         return {
             "success": True,
             "result": analysis_result,
-            "step_id": step.id,
+            "step_id": step.step_id,
             "analysis_type": "tara_analysis",
             "timestamp": datetime.utcnow().isoformat()
         }
@@ -261,7 +255,7 @@ TARA分析结果:
         return {
             "success": True,
             "result": strategy_result,
-            "step_id": step.id,
+            "step_id": step.step_id,
             "strategy_type": "comprehensive_security_testing",
             "standards_compliance": ["ISO_21434", "SAE_J3061", "ISO_26262"],
             "timestamp": datetime.utcnow().isoformat()
@@ -328,7 +322,7 @@ TARA分析结果:
             "success": True,
             "result": test_cases,
             "statistics": statistics,
-            "step_id": step.id,
+            "step_id": step.step_id,
             "test_case_count": len(test_cases.get("test_cases", [])),
             "timestamp": datetime.utcnow().isoformat()
         }
@@ -387,7 +381,7 @@ TARA分析结果:
         return {
             "success": True,
             "result": coverage_analysis,
-            "step_id": step.id,
+            "step_id": step.step_id,
             "analysis_type": "coverage_analysis",
             "timestamp": datetime.utcnow().isoformat()
         }
@@ -442,22 +436,19 @@ TARA分析结果:
             return {"total": 0, "error": str(e)}
     
     async def _execute_general_step(self, step: AgentStep, context: Dict[str, Any]) -> Dict[str, Any]:
-        """执行通用步骤"""
+        """执行其他类型的步骤"""
         prompt = f"""
-作为车联网安全测试专家，执行以下测试用例生成任务：
+作为测试用例设计专家，请执行以下步骤：{step.name}
 
-任务描述: {step.description}
-预期输出: {step.expected_output}
-成功标准: {step.success_criteria}
+步骤描述: {step.description}
 
 上下文信息:
 {json.dumps(context, ensure_ascii=False, indent=2)}
 
-请提供详细的执行结果，包括：
-1. 执行过程说明
-2. 具体输出内容
-3. 质量评估
-4. 改进建议
+请提供完整的执行结果，包括：
+1. 步骤输出内容
+2. 执行过程中的观察发现
+3. 对下一步的建议
 
 以JSON格式返回结果。
 """
@@ -472,30 +463,113 @@ TARA分析结果:
         return {
             "success": True,
             "result": result,
-            "step_id": step.id,
-            "execution_type": "general",
+            "step_id": step.step_id,
+            "step_type": "general",
             "timestamp": datetime.utcnow().isoformat()
         }
     
     def _parse_json_response(self, response: str) -> Dict[str, Any]:
-        """解析JSON响应"""
+        """解析LLM返回的JSON响应"""
         try:
             # 尝试直接解析
-            return json.loads(response)
-        except json.JSONDecodeError:
-            # 如果直接解析失败，尝试提取JSON部分
-            try:
-                start = response.find('{')
-                end = response.rfind('}') + 1
-                if start != -1 and end != 0:
-                    json_str = response[start:end]
-                    return json.loads(json_str)
-            except:
-                pass
+            if response.strip().startswith('{') and response.strip().endswith('}'):
+                return json.loads(response)
             
-            # 如果JSON解析失败，返回包含原始响应的结构
+            # 尝试从代码块中提取JSON
+            import re
+            json_match = re.search(r'```json\n(.*?)\n```', response, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group(1))
+            
+            # 尝试从任意代码块中提取
+            code_match = re.search(r'```(.*?)```', response, re.DOTALL)
+            if code_match:
+                return json.loads(code_match.group(1))
+            
+            # 返回文本响应为结果
+            return {"raw_response": response}
+            
+        except (json.JSONDecodeError, ValueError) as e:
+            self.logger.warning(f"JSON解析失败: {e}")
+            return {"raw_response": response, "parse_error": str(e)}
+
+    async def execute(self, user_request: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """执行测试用例生成流程"""
+        try:
+            self.logger.info(f"开始执行测试用例生成: {user_request}")
+            
+            # 生成计划
+            plan = await self.generate_plan(user_request, context)
+            
+            results = {}
+            all_steps_results = []
+            
+            # 逐步执行计划
+            for step in plan.steps:
+                step.status = "running"
+                step.started_at = datetime.utcnow()
+                
+                # 执行步骤
+                step_result = await self.execute_step(step, {
+                    **context,
+                    "previous_results": results,
+                    "plan": plan.to_dict()
+                })
+                
+                # 更新步骤状态
+                step.status = "completed" if step_result.get("success", False) else "failed"
+                step.completed_at = datetime.utcnow()
+                step.result = step_result
+                
+                # 保存步骤结果
+                if step.status == "completed":
+                    results[step.name] = step_result.get("result", {})
+                    all_steps_results.append(step_result)
+                
+                # 更新计划进度
+                plan.update_progress()
+            
+            # 聚合结果
+            final_result = await self.aggregate_results(all_steps_results, context)
+            
             return {
-                "raw_response": response,
-                "parsed": False,
-                "error": "Failed to parse JSON response"
-            } 
+                "success": True,
+                "plan": plan.to_dict(),
+                "result": final_result,
+                "agent_type": self.get_agent_type(),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"测试用例生成失败: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "agent_type": self.get_agent_type(),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+    
+    async def aggregate_results(self, step_results: List[Dict[str, Any]], context: Dict[str, Any]) -> Dict[str, Any]:
+        """聚合所有步骤的结果"""
+        test_cases = {}
+        
+        # 提取测试用例设计结果
+        for result in step_results:
+            if "result" in result and isinstance(result["result"], dict):
+                if "test_cases" in result["result"]:
+                    test_cases.update(result["result"]["test_cases"])
+        
+        # 如果没有找到测试用例，使用最后一个步骤的结果
+        if not test_cases and step_results:
+            last_result = step_results[-1]
+            if "result" in last_result:
+                test_cases = last_result["result"]
+        
+        # 计算测试统计信息
+        statistics = self._calculate_test_statistics(test_cases)
+        
+        return {
+            "test_cases": test_cases,
+            "statistics": statistics,
+            "generation_time": datetime.utcnow().isoformat()
+        } 

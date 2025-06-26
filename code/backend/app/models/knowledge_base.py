@@ -82,7 +82,7 @@ class Document(Base):
     
     # 文档内容
     content = Column(Text, nullable=True)  # 提取的文本内容
-    metadata = Column(JSON, default={})   # 文档元数据
+    doc_metadata = Column(JSON, default={})   # 文档元数据
     
     # 向量化信息
     is_vectorized = Column(Boolean, default=False)

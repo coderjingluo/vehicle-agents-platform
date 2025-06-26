@@ -448,4 +448,9 @@ async def get_optimized_db_session():
 performance_monitor = PerformanceMonitor()
 task_queue = AsyncTaskQueue(max_workers=settings.MAX_ASYNC_WORKERS if hasattr(settings, 'MAX_ASYNC_WORKERS') else 10)
 db_optimizer = DatabaseOptimizer()
-response_compressor = ResponseCompressor() 
+response_compressor = ResponseCompressor()
+
+
+def get_performance_monitor() -> PerformanceMonitor:
+    """获取性能监控器实例"""
+    return performance_monitor 

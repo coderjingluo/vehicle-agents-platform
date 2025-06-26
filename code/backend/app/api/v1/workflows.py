@@ -107,11 +107,7 @@ async def execute_workflow_stream(
         async def generate():
             try:
                 # 发送工作流开始事件
-                yield f"data: {json.dumps({
-                    'event': 'workflow_started',
-                    'workflow_id': workflow_id,
-                    'timestamp': datetime.utcnow().isoformat()
-                })}\n\n"
+                yield f"data: {json.dumps({'event': 'workflow_started', 'workflow_id': workflow_id, 'timestamp': datetime.utcnow().isoformat()})}\\n\\n"
                 
                 # 记录工作流
                 workflow_info = WorkflowExecution(
@@ -129,12 +125,7 @@ async def execute_workflow_stream(
                 active_workflows[workflow_id] = workflow_info
                 
                 # 发送初始化事件
-                yield f"data: {json.dumps({
-                    'event': 'initializing',
-                    'message': '正在初始化工作流...',
-                    'workflow_id': workflow_id,
-                    'timestamp': datetime.utcnow().isoformat()
-                })}\n\n"
+                yield f"data: {json.dumps({'event': 'initializing', 'message': '正在初始化工作流...', 'workflow_id': workflow_id, 'timestamp': datetime.utcnow().isoformat()})}\\n\\n"
                 
                 # 执行工作流（这里需要实现流式执行）
                 # 目前简化为逐步更新
@@ -156,15 +147,7 @@ async def execute_workflow_stream(
                     workflow_info.updated_at = datetime.utcnow()
                     
                     # 发送步骤进度
-                    yield f"data: {json.dumps({
-                        'event': 'step_progress',
-                        'current_step': step,
-                        'step_index': i,
-                        'total_steps': len(steps),
-                        'progress': (i / len(steps)) * 100,
-                        'workflow_id': workflow_id,
-                        'timestamp': datetime.utcnow().isoformat()
-                    })}\n\n"
+                    yield f"data: {json.dumps({'event': 'step_progress', 'current_step': step, 'step_index': i, 'total_steps': len(steps), 'progress': (i / len(steps)) * 100, 'workflow_id': workflow_id, 'timestamp': datetime.utcnow().isoformat()})}\\n\\n"
                     
                     # 模拟步骤执行时间
                     await asyncio.sleep(1)
@@ -185,13 +168,7 @@ async def execute_workflow_stream(
                 workflow_info.steps_completed = len(steps)
                 
                 # 发送完成事件
-                yield f"data: {json.dumps({
-                    'event': 'workflow_completed',
-                    'result': result,
-                    'workflow_id': workflow_id,
-                    'execution_time': (workflow_info.completed_at - workflow_info.started_at).total_seconds(),
-                    'timestamp': datetime.utcnow().isoformat()
-                })}\n\n"
+                yield f"data: {json.dumps({'event': 'workflow_completed', 'result': result, 'workflow_id': workflow_id, 'execution_time': (workflow_info.completed_at - workflow_info.started_at).total_seconds(), 'timestamp': datetime.utcnow().isoformat()})}\\n\\n"
                 
             except Exception as e:
                 # 更新错误状态
@@ -202,12 +179,7 @@ async def execute_workflow_stream(
                     workflow_info.updated_at = datetime.utcnow()
                 
                 # 发送错误事件
-                yield f"data: {json.dumps({
-                    'event': 'workflow_failed',
-                    'error': str(e),
-                    'workflow_id': workflow_id,
-                    'timestamp': datetime.utcnow().isoformat()
-                })}\n\n"
+                yield f"data: {json.dumps({'event': 'workflow_failed', 'error': str(e), 'workflow_id': workflow_id, 'timestamp': datetime.utcnow().isoformat()})}\\n\\n"
         
         return StreamingResponse(
             generate(),

@@ -270,7 +270,7 @@ health_check() {
     fi
     
     # 检查数据库
-    if docker exec tara_postgres pg_isready -U admin > /dev/null 2>&1; then
+    if docker exec postgres pg_isready -U admin > /dev/null 2>&1; then
         log_success "数据库运行正常"
     else
         log_error "数据库异常"
@@ -285,7 +285,7 @@ backup_data() {
     mkdir -p "$BACKUP_DIR"
     
     # 备份数据库
-    docker exec tara_postgres pg_dump -U admin automotive_security > "$BACKUP_DIR/database.sql"
+    docker exec postgres pg_dump -U admin automotive_security > "$BACKUP_DIR/database.sql"
     
     # 备份上传文件
     cp -r uploads "$BACKUP_DIR/" 2>/dev/null || true

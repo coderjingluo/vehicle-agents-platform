@@ -35,12 +35,12 @@ from app.api.v1.auth import router as auth_router
 api_router = APIRouter()
 
 # 注册子路由器
-api_router.include_router(auth_router, prefix="/v1", tags=["Authentication"])
-api_router.include_router(agents_router, prefix="/v1")
-api_router.include_router(system_router, prefix="/v1") 
-api_router.include_router(workflows_router, prefix="/v1")
-api_router.include_router(knowledge_base_router, prefix="/v1")
-api_router.include_router(model_config_router, prefix="/v1")
+api_router.include_router(auth_router, tags=["Authentication"])
+api_router.include_router(agents_router)
+api_router.include_router(system_router) 
+api_router.include_router(workflows_router)
+api_router.include_router(knowledge_base_router)
+api_router.include_router(model_config_router)
 
 # 全局工作流管理器
 workflow_manager = None
@@ -154,161 +154,6 @@ async def get_workflow_status(workflow_id: str):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取状态失败: {str(e)}")
-
-
-@api_router.get("/agents", response_model=Dict[str, Any])
-async def list_agents():
-    """列出所有可用的智能体"""
-    try:
-        from app.agents import list_available_agents, get_agent_info
-        
-        agents_list = list_available_agents()
-        agent_details = {}
-        
-        for agent_type in agents_list:
-            agent_details[agent_type] = get_agent_info(agent_type)
-        
-        return {
-            "success": True,
-            "agents": agent_details,
-            "total_count": len(agents_list),
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"列出智能体失败: {e}")
-        raise HTTPException(status_code=500, detail=f"列出智能体失败: {str(e)}")
-
-
-@api_router.post("/agents/{agent_type}/execute", response_model=Dict[str, Any])
-async def execute_agent(
-    agent_type: str,
-    request: Dict[str, Any],
-    background_tasks: BackgroundTasks
-):
-    """执行指定类型的智能体"""
-    try:
-        from app.agents import get_agent
-        
-        # 验证智能体类型
-        valid_types = list_available_agents()
-        if agent_type not in valid_types:
-            raise HTTPException(status_code=400, detail=f"不支持的智能体类型: {agent_type}")
-        
-        # 获取智能体实例
-        agent = get_agent(agent_type)
-        
-        # 创建任务
-        task_id = str(uuid.uuid4())
-        user_request = request.get("request", "")
-        context = request.get("context", {})
-        
-        # 生成执行计划
-        plan = await agent.generate_plan(user_request, context)
-        
-        # 执行任务
-        result = await agent.execute(user_request, context)
-        
-        return {
-            "success": True,
-            "task_id": task_id,
-            "agent_type": agent_type,
-            "plan": plan.to_dict() if hasattr(plan, 'to_dict') else str(plan),
-            "result": result,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"执行智能体失败 {agent_type}: {e}")
-        raise HTTPException(status_code=500, detail=f"执行智能体失败: {str(e)}")
-
-
-@api_router.post("/agents/{agent_type}/stream")
-async def stream_agent_execution(
-    agent_type: str,
-    request: Dict[str, Any]
-):
-    """流式执行智能体"""
-    async def generate():
-        try:
-            from app.agents import get_agent
-            
-            # 验证智能体类型
-            valid_types = list_available_agents()
-            if agent_type not in valid_types:
-                yield f"data: {json.dumps({'error': f'不支持的智能体类型: {agent_type}'})}\n\n"
-                return
-            
-            # 获取智能体实例
-            agent = get_agent(agent_type)
-            
-            user_request = request.get("request", "")
-            context = request.get("context", {})
-            
-            # 发送开始事件
-            yield f"data: {json.dumps({'event': 'start', 'agent_type': agent_type, 'timestamp': datetime.utcnow().isoformat()})}\n\n"
-            
-            # 生成计划
-            yield f"data: {json.dumps({'event': 'planning', 'message': '正在生成执行计划...'})}\n\n"
-            plan = await agent.generate_plan(user_request, context)
-            
-            yield f"data: {json.dumps({'event': 'plan_generated', 'plan': plan.to_dict() if hasattr(plan, 'to_dict') else str(plan)})}\n\n"
-            
-            # 执行步骤
-            step_results = []
-            for i, step in enumerate(plan.steps if hasattr(plan, 'steps') else []):
-                yield f"data: {json.dumps({'event': 'step_start', 'step': i+1, 'total': len(plan.steps), 'step_name': step.name})}\n\n"
-                
-                step_result = await agent.execute_step(step, context)
-                step_results.append(step_result)
-                
-                yield f"data: {json.dumps({'event': 'step_complete', 'step': i+1, 'result': step_result})}\n\n"
-            
-            # 发送完成事件
-            final_result = await agent.aggregate_results(step_results, context)
-            yield f"data: {json.dumps({'event': 'complete', 'result': final_result, 'timestamp': datetime.utcnow().isoformat()})}\n\n"
-            
-        except Exception as e:
-            logger.error(f"流式执行智能体失败 {agent_type}: {e}")
-            yield f"data: {json.dumps({'event': 'error', 'error': str(e), 'timestamp': datetime.utcnow().isoformat()})}\n\n"
-    
-    return StreamingResponse(generate(), media_type="text/plain")
-
-
-@api_router.get("/agents/{agent_type}/status")
-async def get_agent_status(agent_type: str):
-    """获取特定智能体的状态"""
-    
-    if agent_type not in agents:
-        raise HTTPException(status_code=404, detail=f"智能体 {agent_type} 不存在")
-    
-    agent = agents[agent_type]
-    status = agent.get_status()
-    
-    return {
-        "success": True,
-        "agent_status": status,
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-
-@api_router.get("/agents/{agent_type}/tools")
-async def get_agent_tools(agent_type: str):
-    """获取智能体可用的工具"""
-    
-    if agent_type not in agents:
-        raise HTTPException(status_code=404, detail=f"智能体 {agent_type} 不存在")
-    
-    agent = agents[agent_type]
-    tools = agent.get_available_tools()
-    
-    return {
-        "success": True,
-        "agent_type": agent_type,
-        "available_tools": tools,
-        "tools_count": len(tools),
-        "timestamp": datetime.utcnow().isoformat()
-    }
 
 
 @api_router.post("/llm/generate")
@@ -745,12 +590,6 @@ async def demo_multi_agent_workflow():
     except Exception as e:
         logger.error(f"多智能体工作流演示失败: {e}")
         raise HTTPException(status_code=500, detail=f"演示失败: {str(e)}")
-
-
-# 添加到主路由器
-# 包含Phase 4高级功能路由
-api_router.include_router(knowledge_base_router, prefix="/api/v1")
-api_router.include_router(model_config_router, prefix="/api/v1")
 
 
 def get_api_router() -> APIRouter:

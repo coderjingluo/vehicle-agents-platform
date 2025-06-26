@@ -56,9 +56,13 @@ const modelsAPI = {
   /**
    * 测试模型连接
    * @param {string} id - 模型ID
+   * @param {Object} testParams - 测试参数（可选）
+   * @param {string} testParams.test_message - 测试消息
    */
-  testModel(id) {
-    return apiClient.post(`/models/${id}/test`)
+  testModel(id, testParams = {}) {
+    return apiClient.post(`/models/${id}/test`, {
+      test_message: testParams.test_message || "Hello, this is a test message."
+    })
   },
 
   /**
@@ -201,10 +205,146 @@ const modelsAPI = {
       },
       audio: {
         name: '音频模型',
-        description: '用于音频处理',
+        description: '用于语音处理',
         icon: 'Microphone'
       }
     }
+  },
+
+  /**
+   * MCP (Model Context Protocol) 相关接口
+   */
+  
+  /**
+   * 获取MCP配置列表
+   */
+  getMCPConfigs() {
+    return apiClient.get('/model-config/mcp')
+  },
+
+  /**
+   * 创建MCP配置
+   * @param {Object} data - MCP配置数据
+   * @param {string} data.name - MCP名称
+   * @param {string} data.description - 描述
+   * @param {string} data.type - 连接类型 (SSE|WebSocket|Local)
+   * @param {string} data.url - 服务器地址
+   * @param {string} data.api_key - API密钥（可选）
+   * @param {number} data.timeout - 超时时间
+   * @param {boolean} data.auto_connect - 自动连接
+   */
+  createMCPConfig(data) {
+    return apiClient.post('/model-config/mcp', data)
+  },
+
+  /**
+   * 获取MCP配置详情
+   * @param {string} id - MCP配置ID
+   */
+  getMCPConfig(id) {
+    return apiClient.get(`/model-config/mcp/${id}`)
+  },
+
+  /**
+   * 更新MCP配置
+   * @param {string} id - MCP配置ID
+   * @param {Object} data - 更新数据
+   */
+  updateMCPConfig(id, data) {
+    return apiClient.put(`/model-config/mcp/${id}`, data)
+  },
+
+  /**
+   * 删除MCP配置
+   * @param {string} id - MCP配置ID
+   */
+  deleteMCPConfig(id) {
+    return apiClient.delete(`/model-config/mcp/${id}`)
+  },
+
+  /**
+   * 测试MCP连接
+   * @param {string} id - MCP配置ID
+   */
+  testMCPConnection(id) {
+    return apiClient.post(`/model-config/mcp/${id}/test`)
+  },
+
+  /**
+   * 断开MCP连接
+   * @param {string} id - MCP配置ID
+   */
+  disconnectMCP(id) {
+    return apiClient.post(`/model-config/mcp/${id}/disconnect`)
+  },
+
+  /**
+   * 获取MCP工具列表
+   * @param {string} id - MCP配置ID
+   */
+  getMCPTools(id) {
+    return apiClient.get(`/model-config/mcp/${id}/tools`)
+  },
+
+  /**
+   * 执行MCP工具
+   * @param {string} id - MCP配置ID
+   * @param {string} toolName - 工具名称
+   * @param {Object} params - 工具参数
+   */
+  executeMCPTool(id, toolName, params) {
+    return apiClient.post(`/model-config/mcp/${id}/tools/${toolName}/execute`, params)
+  },
+
+  /**
+   * 获取MCP连接日志
+   * @param {Object} params - 查询参数
+   */
+  getConnectionLogs(params = {}) {
+    return apiClient.get('/model-config/mcp/logs', { params })
+  },
+
+  /**
+   * 清理MCP连接日志
+   */
+  clearConnectionLogs() {
+    return apiClient.delete('/model-config/mcp/logs')
+  },
+
+  /**
+   * 批量测试MCP连接
+   * @param {Array} mcpIds - MCP配置ID列表
+   */
+  batchTestMCPConnections(mcpIds) {
+    return apiClient.post('/model-config/mcp/batch-test', { mcp_ids: mcpIds })
+  },
+
+  /**
+   * 获取MCP统计信息
+   */
+  getMCPStats() {
+    return apiClient.get('/model-config/mcp/stats')
+  },
+
+  /**
+   * 导入MCP配置
+   * @param {FormData} formData - 包含配置文件的表单数据
+   */
+  importMCPConfigs(formData) {
+    return apiClient.post('/model-config/mcp/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+
+  /**
+   * 导出MCP配置
+   * @param {Array} mcpIds - 要导出的MCP配置ID列表（可选）
+   */
+  exportMCPConfigs(mcpIds = []) {
+    const params = mcpIds.length > 0 ? { mcp_ids: mcpIds } : {}
+    return apiClient.get('/model-config/mcp/export', { params })
   }
 }
 

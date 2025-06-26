@@ -53,10 +53,18 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = Field(default=30, description="访问令牌过期时间(分钟)")
     
     # CORS配置
-    allowed_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:5173"],
-        description="允许的跨域源"
+    # 指定为所有源
+    allowed_origins: str = Field(
+        default="*",
+        description="允许的跨域源(逗号分隔)"
     )
+    
+    @property
+    def cors_origins(self) -> List[str]:
+        """获取CORS源列表"""
+        if isinstance(self.allowed_origins, str):
+            return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+        return self.allowed_origins
     
     # AI模型配置
     openai_api_key: Optional[str] = Field(default=None, description="OpenAI API密钥")

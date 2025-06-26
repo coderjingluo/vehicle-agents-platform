@@ -352,4 +352,13 @@ def cache_result(
 
 
 # 全局缓存管理器实例
-cache_manager = SmartCacheManager() 
+cache_manager = SmartCacheManager()
+
+
+def get_cache_manager() -> SmartCacheManager:
+    """获取缓存管理器实例"""
+    return cache_manager
+
+
+# 简化的别名
+CacheManager = SmartCacheManager 

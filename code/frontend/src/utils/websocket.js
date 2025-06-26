@@ -28,7 +28,10 @@ export class WebSocketManager {
    */
   createConnection(connectionId, endpoint, options = {}, messageHandler = null) {
     const config = { ...this.defaultOptions, ...options }
-    const url = `${WEBSOCKET_URL}${endpoint}`
+    
+    // 确保endpoint以/开头
+    const wsEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+    const url = `${WEBSOCKET_URL}${wsEndpoint}`
 
     console.log(`[WebSocket] 创建连接: ${connectionId} -> ${url}`)
 

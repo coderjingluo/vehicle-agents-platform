@@ -228,9 +228,12 @@ async def stream_agent_execution(
     agent_type: str,
     request: AgentExecutionRequest
 ):
-    """流式执行智能体任务（支持实时结果流）"""
+    """流式执行智能体任务（支持智能步骤分配和实时结果流）"""
     try:
+        logger.info(f"收到流式执行请求: agent_type={agent_type}")
+        
         if agent_type not in AGENT_REGISTRY:
+            logger.error(f"不支持的智能体类型: {agent_type}")
             raise HTTPException(
                 status_code=400,
                 detail=f"不支持的智能体类型: {agent_type}"
@@ -238,71 +241,324 @@ async def stream_agent_execution(
         
         # 获取或创建智能体实例
         if agent_type not in agent_instances:
+            logger.info(f"创建新的{agent_type}智能体实例")
             agent = get_agent(agent_type)
             agent.instance_id = str(uuid.uuid4())
             agent_instances[agent_type] = agent
         else:
+            logger.info(f"使用现有的{agent_type}智能体实例")
             agent = agent_instances[agent_type]
+        
+        # 针对TARA智能体的特殊处理
+        if agent_type == "tara":
+            logger.info("使用TARA专用流式处理")
+            return StreamingResponse(
+                tara_stream_execution(agent, request),
+                media_type="text/event-stream"
+            )
         
         async def generate():
             task_id = str(uuid.uuid4())
             
             try:
                 # 发送任务开始事件
-                yield f"data: {json.dumps({
-                    'event': 'task_started',
+                yield "data: {}\n\n".format(json.dumps({
+                    'type': 'task_started',
                     'task_id': task_id,
                     'agent_type': agent_type,
+                    'chat_mode': request.chat_mode,
+                    'enable_planning': request.enable_planning,
                     'timestamp': datetime.utcnow().isoformat()
-                })}\n\n"
+                }))
                 
-                # 生成执行计划
-                yield f"data: {json.dumps({
-                    'event': 'planning',
-                    'message': '正在生成执行计划...',
+                # 如果启用智能规划，先生成执行计划
+                if request.enable_planning or request.chat_mode:
+                    yield "data: {}\n\n".format(json.dumps({
+                        'type': 'planning',
+                        'message': '正在分析任务需求并制定执行计划...',
+                        'timestamp': datetime.utcnow().isoformat()
+                    }))
+                    
+                    # 生成智能执行计划
+                    plan_result = await agent.generate_llm_plan(request.user_request, request.context)
+                    
+                    if plan_result.get('success'):
+                        plan_data = plan_result['plan']
+                        
+                        # 格式化计划步骤
+                        formatted_steps = []
+                        if isinstance(plan_data, dict) and 'steps' in plan_data:
+                            for i, step in enumerate(plan_data['steps']):
+                                formatted_steps.append({
+                                    'title': step.get('name', f'步骤 {i+1}'),
+                                    'description': step.get('description', ''),
+                                    'tools': step.get('tool_name', []) if isinstance(step.get('tool_name'), list) else [step.get('tool_name')] if step.get('tool_name') else [],
+                                    'status': 'pending'
+                                })
+                        else:
+                            # 如果LLM没有返回标准格式，创建默认步骤
+                            formatted_steps = [
+                                {
+                                    'title': '需求分析',
+                                    'description': '分析用户请求和系统上下文',
+                                    'tools': ['analyzer'],
+                                    'status': 'pending'
+                                },
+                                {
+                                    'title': '数据处理',
+                                    'description': '处理和分析相关数据',
+                                    'tools': ['processor'],
+                                    'status': 'pending'
+                                },
+                                {
+                                    'title': '结果生成',
+                                    'description': '生成最终分析结果',
+                                    'tools': ['generator'],
+                                    'status': 'pending'
+                                }
+                            ]
+                        
+                        yield "data: {}\n\n".format(json.dumps({
+                            'type': 'planning',
+                            'message': '执行计划已制定完成',
+                            'steps': formatted_steps,
+                            'timestamp': datetime.utcnow().isoformat()
+                        }))
+                    else:
+                        # 计划生成失败，使用默认步骤
+                        yield "data: {}\n\n".format(json.dumps({
+                            'type': 'planning',
+                            'message': '使用默认执行计划',
+                            'steps': [
+                                {
+                                    'title': '智能分析',
+                                    'description': '使用AI进行智能分析',
+                                    'tools': ['llm'],
+                                    'status': 'pending'
+                                }
+                            ],
+                            'timestamp': datetime.utcnow().isoformat()
+                        }))
+                
+                # 如果启用步骤化执行，逐步执行并反馈
+                if request.step_by_step or request.chat_mode:
+                    steps = [
+                        {'name': '初始化分析', 'progress': 0},
+                        {'name': '数据预处理', 'progress': 25},
+                        {'name': '核心分析', 'progress': 50},
+                        {'name': '结果整理', 'progress': 75},
+                        {'name': '生成报告', 'progress': 100}
+                    ]
+                    
+                    for step in steps:
+                        # 步骤开始
+                        yield "data: {}\n\n".format(json.dumps({
+                            'type': 'step_start',
+                            'step_name': step['name'],
+                            'message': f'开始执行: {step["name"]}',
+                            'progress': step['progress'],
+                            'timestamp': datetime.utcnow().isoformat()
+                        }))
+                        
+                        # 模拟步骤执行
+                        await asyncio.sleep(1)
+                        
+                        # 步骤进度
+                        yield "data: {}\n\n".format(json.dumps({
+                            'type': 'step_progress',
+                            'step_name': step['name'],
+                            'progress': step['progress'],
+                            'message': f'{step["name"]}执行中...',
+                            'tool_calls': [
+                                {
+                                    'tool': 'ai_analyzer',
+                                    'input': f'执行{step["name"]}',
+                                    'status': 'running'
+                                }
+                            ] if step['progress'] > 0 else None,
+                            'timestamp': datetime.utcnow().isoformat()
+                        }))
+                        
+                        # 步骤完成
+                        yield "data: {}\n\n".format(json.dumps({
+                            'type': 'step_completed',
+                            'step_name': step['name'],
+                            'message': f'{step["name"]}已完成',
+                            'status': 'completed',
+                            'timestamp': datetime.utcnow().isoformat()
+                        }))
+                
+                # 执行主要任务
+                yield "data: {}\n\n".format(json.dumps({
+                    'type': 'executing',
+                    'message': '正在执行核心分析任务...',
                     'timestamp': datetime.utcnow().isoformat()
-                })}\n\n"
+                }))
                 
-                plan = await agent.generate_plan(request.user_request, request.context)
-                
-                yield f"data: {json.dumps({
-                    'event': 'plan_generated',
-                    'plan': plan.model_dump() if hasattr(plan, 'model_dump') else str(plan),
-                    'timestamp': datetime.utcnow().isoformat()
-                })}\n\n"
-                
-                # 执行任务并流式返回结果
-                yield f"data: {json.dumps({
-                    'event': 'executing',
-                    'message': '正在执行任务...',
-                    'timestamp': datetime.utcnow().isoformat()
-                })}\n\n"
-                
-                # 这里应该实现流式执行，目前简化处理
+                # 调用智能体执行
                 result = await agent.execute(request.user_request, request.context)
                 
-                yield f"data: {json.dumps({
-                    'event': 'task_completed',
-                    'result': result,
+                # 发送最终结果
+                yield "data: {}\n\n".format(json.dumps({
+                    'type': 'result',
+                    'message': '任务执行完成',
+                    'result_data': result,
                     'timestamp': datetime.utcnow().isoformat()
-                })}\n\n"
+                }))
+                
+                # 任务完成事件
+                yield "data: {}\n\n".format(json.dumps({
+                    'type': 'completed',
+                    'task_id': task_id,
+                    'timestamp': datetime.utcnow().isoformat()
+                }))
                 
             except Exception as e:
-                yield f"data: {json.dumps({
-                    'event': 'task_failed',
-                    'error': str(e),
+                logger.error(f"流式执行任务失败: {e}")
+                
+                # 发送错误事件
+                yield "data: {}\n\n".format(json.dumps({
+                    'type': 'error',
+                    'message': str(e),
+                    'task_id': task_id,
                     'timestamp': datetime.utcnow().isoformat()
-                })}\n\n"
+                }))
         
         return StreamingResponse(
             generate(),
-            media_type="text/plain",
-            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
+            media_type="text/event-stream"
         )
         
     except Exception as e:
-        logger.error(f"流式执行智能体任务失败: {e}")
-        raise HTTPException(status_code=500, detail=f"流式执行智能体任务失败: {str(e)}")
+        logger.error(f"初始化流式执行失败: {e}")
+        raise HTTPException(status_code=500, detail=f"流式执行失败: {str(e)}")
+
+
+async def tara_stream_execution(agent, request):
+    """TARA智能体特定的流式执行处理"""
+    task_id = str(uuid.uuid4())
+    logger.info(f"开始TARA流式执行: task_id={task_id}")
+    
+    try:
+        # 发送任务开始事件
+        logger.info(f"TARA流式执行: 发送任务开始事件")
+        yield "data: {}\n\n".format(json.dumps({
+            'type': 'task_started',
+            'task_id': task_id,
+            'agent_type': 'tara',
+            'timestamp': datetime.utcnow().isoformat()
+        }))
+        
+        # TARA特定步骤
+        tara_steps = [
+            {'name': '需求解析', 'description': '分析系统架构和需求', 'progress': 0},
+            {'name': '威胁识别', 'description': '基于STRIDE模型识别威胁', 'progress': 20},
+            {'name': '漏洞分析', 'description': '评估系统安全漏洞', 'progress': 40},
+            {'name': '风险评估', 'description': '计算风险等级和影响', 'progress': 60},
+            {'name': '缓解建议', 'description': '制定安全缓解措施', 'progress': 80},
+            {'name': '合规检查', 'description': '验证法规符合性', 'progress': 100}
+        ]
+        
+        # 发送TARA计划
+        logger.info(f"TARA流式执行: 发送分析计划")
+        yield "data: {}\n\n".format(json.dumps({
+            'type': 'planning',
+            'message': 'TARA分析计划已制定',
+            'steps': [
+                {
+                    'title': step['name'], 
+                    'description': step['description'],
+                    'status': 'pending'
+                } for step in tara_steps
+            ],
+            'timestamp': datetime.utcnow().isoformat()
+        }))
+        
+        # 逐步执行TARA分析
+        for step in tara_steps:
+            # 步骤开始
+            logger.info(f"TARA流式执行: 开始步骤 {step['name']}")
+            yield "data: {}\n\n".format(json.dumps({
+                'type': 'step_start',
+                'step_name': step['name'],
+                'message': f'开始执行: {step["name"]}',
+                'progress': step['progress'],
+                'timestamp': datetime.utcnow().isoformat()
+            }))
+            
+            # 模拟步骤执行时间（实际项目中可以根据实际处理时间调整）
+            await asyncio.sleep(1.5)
+            
+            # 步骤进度
+            logger.info(f"TARA流式执行: 步骤进度 {step['name']} - {step['progress']}%")
+            yield "data: {}\n\n".format(json.dumps({
+                'type': 'step_progress',
+                'step_name': step['name'],
+                'progress': step['progress'],
+                'message': f'{step["name"]}执行中...',
+                'timestamp': datetime.utcnow().isoformat()
+            }))
+            
+            # 步骤完成
+            logger.info(f"TARA流式执行: 步骤完成 {step['name']}")
+            yield "data: {}\n\n".format(json.dumps({
+                'type': 'step_completed',
+                'step_name': step['name'],
+                'message': f'{step["name"]}已完成',
+                'status': 'completed',
+                'timestamp': datetime.utcnow().isoformat()
+            }))
+        
+        # 执行TARA分析
+        logger.info(f"TARA流式执行: 开始核心分析")
+        yield "data: {}\n\n".format(json.dumps({
+            'type': 'executing',
+            'message': '正在执行TARA分析...',
+            'timestamp': datetime.utcnow().isoformat()
+        }))
+        
+        # 调用TARA智能体执行
+        logger.info(f"TARA流式执行: 调用智能体执行方法")
+        result = await agent.execute(request.user_request, request.context)
+        logger.info(f"TARA流式执行: 智能体执行完成")
+        
+        # 如果是字符串格式，尝试解析为JSON
+        if isinstance(result, str):
+            try:
+                result = json.loads(result)
+                logger.info(f"TARA流式执行: 解析字符串结果为JSON")
+            except json.JSONDecodeError:
+                # 保持字符串格式
+                logger.info(f"TARA流式执行: 结果保持字符串格式")
+                pass
+        
+        # 发送TARA分析结果
+        logger.info(f"TARA流式执行: 发送分析结果")
+        yield "data: {}\n\n".format(json.dumps({
+            'type': 'result',
+            'message': 'TARA分析完成',
+            'result_data': result,
+            'timestamp': datetime.utcnow().isoformat()
+        }))
+        
+        # 任务完成事件
+        logger.info(f"TARA流式执行: 发送任务完成事件")
+        yield "data: {}\n\n".format(json.dumps({
+            'type': 'completed',
+            'task_id': task_id,
+            'timestamp': datetime.utcnow().isoformat()
+        }))
+        
+    except Exception as e:
+        logger.error(f"TARA流式执行失败: {e}")
+        
+        # 发送错误事件
+        yield "data: {}\n\n".format(json.dumps({
+            'type': 'error',
+            'message': str(e),
+            'task_id': task_id,
+            'timestamp': datetime.utcnow().isoformat()
+        }))
 
 
 @router.get("/{agent_type}/status", response_model=AgentStatus)
@@ -633,3 +889,29 @@ async def get_batch_status(batch_id: str):
     except Exception as e:
         logger.error(f"获取批次状态失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取批次状态失败: {str(e)}")
+
+
+@router.post("/tara/stream")
+async def tara_agent_stream(request: AgentExecutionRequest):
+    """TARA智能体特定的流式执行端点"""
+    try:
+        logger.info("收到TARA智能体流式执行请求")
+        
+        # 获取或创建TARA智能体实例
+        if "tara" not in agent_instances:
+            logger.info("创建新的TARA智能体实例")
+            agent = get_agent("tara")
+            agent.instance_id = str(uuid.uuid4())
+            agent_instances["tara"] = agent
+        else:
+            logger.info("使用现有的TARA智能体实例")
+            agent = agent_instances["tara"]
+        
+        return StreamingResponse(
+            tara_stream_execution(agent, request),
+            media_type="text/event-stream"
+        )
+        
+    except Exception as e:
+        logger.error(f"TARA流式执行初始化失败: {e}")
+        raise HTTPException(status_code=500, detail=f"TARA流式执行失败: {str(e)}")

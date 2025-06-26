@@ -19,25 +19,23 @@ const workflowAPI = {
 
   /**
    * 执行工作流
-   * @param {string} workflowId - 工作流ID
    * @param {Object} params - 执行参数
    * @param {string} params.user_request - 用户请求
    * @param {Object} params.context - 上下文数据
    * @param {number} params.max_iterations - 最大迭代次数
    * @param {number} params.max_retries - 最大重试次数
-   * @param {Object} params.config - 执行配置
+   * @param {number} params.timeout - 超时时间(秒)
    */
-  executeWorkflow(workflowId, params) {
-    return apiClient.post(`/workflows/${workflowId}/execute`, params)
+  executeWorkflow(params) {
+    return apiClient.post(`/workflows/execute`, params)
   },
 
   /**
    * 流式执行工作流
-   * @param {string} workflowId - 工作流ID
    * @param {Object} params - 执行参数
    */
-  async streamWorkflowExecution(workflowId, params) {
-    const response = await fetch(`${apiClient.defaults.baseURL}/workflows/${workflowId}/stream`, {
+  async streamWorkflowExecution(params) {
+    const response = await fetch(`${apiClient.defaults.baseURL}/workflows/execute/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
