@@ -1,181 +1,184 @@
 <template>
   <div class="agent-chat">
-    <!-- 聊天消息区域 -->
-    <div class="chat-container" ref="chatContainer">
-      <div class="chat-messages">
-        <div
-          v-for="message in messages"
-          :key="message.id"
-          class="message-item"
-          :class="`message-${message.type}`"
-        >
-          <div class="message-header">
-            <div class="message-avatar">
-              <el-icon v-if="message.type === 'user'"><User /></el-icon>
-              <el-icon v-else-if="message.type === 'system'"><Monitor /></el-icon>
-              <div v-else class="agent-avatar">
-                <el-icon><Cpu /></el-icon>
-                <span class="agent-name">{{ getAgentName(message.agentType) }}</span>
-              </div>
+    <!-- 主聊天区域 -->
+    <div class="chat-main">
+      <!-- 聊天消息区域 -->
+      <div class="chat-container" ref="chatContainer">
+        <!-- 智能规划固定显示 -->
+      <div v-if="hasPlanningMessage" class="planning-fixed">
+        <div class="planning-content">
+          <div class="planning-header">
+            <div class="planning-header-left">
+              <div class="planning-icon">
+              <el-icon><Operation /></el-icon>
             </div>
-            <div class="message-meta">
-              <span class="message-time">{{ formatTime(message.timestamp) }}</span>
-              <el-tag
-                v-if="message.status"
-                :type="getStatusType(message.status)"
-                size="small"
-              >
-                {{ getStatusText(message.status) }}
-              </el-tag>
+            <div class="planning-title">智能任务规划</div>
+            <span class="planning-steps-count">{{ planningSteps.length }} 步</span>
+            </div>
+            <div class="planning-header-right">
+              <el-button 
+              type="text" 
+              class="planning-details-btn"
+              @click="togglePlanningDetails">
+              {{ showPlanningDetails ? '收起详情' : '查看详情' }}
+            </el-button>
             </div>
           </div>
-
-          <div class="message-content">
+          
+          <div class="planning-message">{{ planningMessage }}</div>
+          
+          <div v-if="showPlanningDetails && planningSteps.length > 0" class="planning-steps">
+            <div v-for="(step, index) in planningSteps" :key="index" class="planning-step">
+              <div class="planning-step-number">{{ index + 1 }}</div>
+              <div class="planning-step-content">
+                <div class="planning-step-title">{{ step.title }}</div>
+                <div class="planning-step-description">{{ step.description }}</div>
+                <div v-if="step.tools && step.tools.length > 0" class="planning-step-tools">
+                  <span v-for="(tool, toolIndex) in step.tools" :key="toolIndex" class="tool-tag">
+                    {{ tool }}
+                  </span>
+                </div>
+              </div>
+              <div class="planning-step-status" :class="'status-' + step.status">
+                {{ getStatusText(step.status) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+        <div class="chat-messages">
+          <div
+            v-for="message in messages"
+            :key="message.id"
+            class="message-item"
+            :class="`message-${message.type}`"
+          >
             <!-- 用户消息 -->
             <div v-if="message.type === 'user'" class="user-message">
-              {{ message.content }}
+              <div class="message-content">
+                {{ message.content }}
+              </div>
+              <div class="message-header">
+                <el-icon><User /></el-icon>
+              </div>
             </div>
 
-            <!-- 智能体分析消息 -->
+            <!-- 智能体消息 -->
             <div v-else-if="message.type === 'agent'" class="agent-message">
-              <!-- 步骤分配 -->
-              <div v-if="message.stepType === 'planning'" class="planning-section">
-                <h4>
-                  <el-icon><Operation /></el-icon>
-                  智能步骤分配
-                </h4>
-                <div class="planning-content">
-                  <p>{{ message.content }}</p>
-                  <div v-if="message.steps" class="planned-steps">
-                    <div
-                      v-for="(step, index) in message.steps"
-                      :key="index"
-                      class="planned-step"
-                      :class="{ 'active': step.status === 'running', 'completed': step.status === 'completed' }"
-                    >
-                      <div class="step-number">{{ index + 1 }}</div>
-                      <div class="step-content">
-                        <div class="step-title">{{ step.title }}</div>
-                        <div class="step-description">{{ step.description }}</div>
-                        <div v-if="step.tools" class="step-tools">
-                          <el-tag
-                            v-for="tool in step.tools"
-                            :key="tool"
-                            size="small"
-                            type="info"
-                          >
-                            {{ tool }}
-                          </el-tag>
+              <div class="message-header">
+                <div class="agent-logo">
+                  <span>{{ getAgentShortName(message.agentType) }}</span>
+                </div>
+              </div>
+              <div class="message-content">
+                <!-- 步骤执行内容 -->
+                <div v-if="message.stepType === 'execution'" class="execution-content">
+                  <div class="step-header">
+                    <div class="step-title">
+                      <span v-if="message.stepNumber" class="step-number">Step {{ message.stepNumber }}</span>
+                      <span v-if="message.stepInputOutput" class="step-io">{{ message.stepInputOutput }}</span>
+                    </div>
+                    <div class="step-timestamp">{{ formatTime(message.timestamp) }}</div>
+                  </div>
+
+                  <div class="step-body">
+                    <!-- 当前状态 -->
+                    <div class="step-section">
+                      <div class="section-title">当前状态:</div>
+                      <div class="section-content">{{ message.content }}</div>
+                    </div>
+
+                    <!-- 已收集的信息 -->
+                    <div v-if="message.collectedInfo" class="step-section">
+                      <div class="section-title">已收集的信息:</div>
+                      <div class="section-content" v-html="message.collectedInfo"></div>
+                    </div>
+
+                    <!-- 下一步行动 -->
+                    <div v-if="message.nextAction" class="step-section">
+                      <div class="section-title">下一步行动:</div>
+                      <div class="section-content">{{ message.nextAction }}</div>
+                    </div>
+
+                    <!-- 工具调用 -->
+                    <div v-if="message.tools && message.tools.length > 0" class="step-section">
+                      <div class="section-title">我将立即执行以下工具:</div>
+                      <div class="tools-list">
+                        <div v-for="(tool, index) in message.tools" :key="index" class="tool-item">
+                          <div class="tool-icon" :class="'tool-' + tool.type">
+                            <el-icon><Tools /></el-icon>
+                          </div>
+                          <div class="tool-name">{{ tool.name }}</div>
                         </div>
                       </div>
-                      <div class="step-status">
-                        <el-icon v-if="step.status === 'completed'"><CircleCheckFilled /></el-icon>
-                        <el-icon v-else-if="step.status === 'running'" class="spinning"><Loading /></el-icon>
-                        <el-icon v-else><Clock /></el-icon>
-                      </div>
+                    </div>
+
+                    <!-- 进度条 -->
+                    <div v-if="message.progress !== undefined" class="step-progress">
+                      <el-progress 
+                        :percentage="message.progress" 
+                        :status="message.status === 'completed' ? 'success' : ''" 
+                        :show-text="false"
+                      />
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- 步骤执行 -->
-              <div v-else-if="message.stepType === 'execution'" class="execution-section">
-                <h4>
-                  <el-icon><VideoPlay /></el-icon>
-                  {{ message.stepName }}
-                  <span class="step-progress" v-if="message.progress">
-                    ({{ message.progress }}% 完成)
-                  </span>
-                </h4>
-                <div class="execution-content">
-                  <div class="execution-description">{{ message.content }}</div>
-                  
-                  <!-- 进度条 -->
-                  <el-progress
-                    v-if="message.progress !== undefined"
-                    :percentage="message.progress"
-                    :status="message.status === 'completed' ? 'success' : ''"
-                    :show-text="false"
-                    class="execution-progress"
-                  />
-
-                  <!-- 工具调用信息 -->
-                  <div v-if="message.toolCalls" class="tool-calls">
-                    <div
-                      v-for="(call, index) in message.toolCalls"
-                      :key="index"
-                      class="tool-call"
-                    >
-                      <div class="tool-call-header">
-                        <el-icon><Tools /></el-icon>
-                        <span class="tool-name">{{ call.tool }}</span>
-                        <el-tag :type="getToolCallStatus(call.status)" size="small">
-                          {{ call.status }}
-                        </el-tag>
-                      </div>
-                      <div class="tool-call-content">
-                        <div class="tool-input">
-                          <strong>输入:</strong> {{ call.input }}
-                        </div>
-                        <div v-if="call.output" class="tool-output">
-                          <strong>输出:</strong> {{ call.output }}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- 实时输出 -->
-                  <div v-if="message.realTimeOutput" class="real-time-output">
-                    <div class="output-header">
-                      <el-icon><Monitor /></el-icon>
-                      实时输出
-                    </div>
-                    <div class="output-content">
-                      <pre>{{ message.realTimeOutput }}</pre>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 结果总结 -->
-              <div v-else-if="message.stepType === 'result'" class="result-section">
-                <h4>
-                  <el-icon><CircleCheckFilled /></el-icon>
-                  执行结果
-                </h4>
-                <div class="result-content">
-                  <div class="result-summary">{{ message.content }}</div>
-                  
-                  <!-- 结果数据 -->
+                <!-- 结果或一般消息 -->
+                <div v-else-if="message.stepType !== 'planning'" class="message-text">
                   <div v-if="message.resultData" class="result-data">
-                    <div
-                      v-for="(item, key) in message.resultData"
-                      :key="key"
-                      class="result-item"
-                    >
-                      <strong>{{ key }}:</strong> {{ item }}
+                    <!-- 如果是对象或数组类型，美化显示 -->
+                    <div v-if="typeof message.resultData === 'object'" class="structured-result">
+                      <div v-if="message.resultData.intelligent_summary" class="summary-section">
+                        <h4>分析摘要</h4>
+                        <div class="summary-overview">
+                          <strong>概况:</strong> {{ message.resultData.intelligent_summary.overview }}
+                        </div>
+                        
+                        <div v-if="message.resultData.intelligent_summary.achievements" class="summary-achievements">
+                          <strong>主要成果:</strong>
+                          <ul>
+                            <li v-for="(item, i) in message.resultData.intelligent_summary.achievements" :key="i">
+                              {{ item }}
+                            </li>
+                          </ul>
+                        </div>
+                        
+                        <div v-if="message.resultData.intelligent_summary.issues && message.resultData.intelligent_summary.issues.length > 0" class="summary-issues">
+                          <strong>发现的问题:</strong>
+                          <ul>
+                            <li v-for="(item, i) in message.resultData.intelligent_summary.issues" :key="i">
+                              {{ item }}
+                            </li>
+                          </ul>
+                        </div>
+                        
+                        <div v-if="message.resultData.intelligent_summary.recommendations" class="summary-recommendations">
+                          <strong>建议:</strong>
+                          <ul>
+                            <li v-for="(item, i) in message.resultData.intelligent_summary.recommendations" :key="i">
+                              {{ item }}
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                      
+                      <el-collapse v-if="!message.resultData.intelligent_summary">
+                        <el-collapse-item title="查看详细结果" name="1">
+                          <pre class="json-result">{{ JSON.stringify(message.resultData, null, 2) }}</pre>
+                        </el-collapse-item>
+                      </el-collapse>
+                    </div>
+                    
+                    <!-- 如果是字符串类型，直接显示 -->
+                    <div v-else class="string-result">
+                      {{ message.resultData }}
                     </div>
                   </div>
-
-                  <!-- 下载链接 -->
-                  <div v-if="message.downloadLinks" class="download-links">
-                    <el-button
-                      v-for="link in message.downloadLinks"
-                      :key="link.url"
-                      type="primary"
-                      size="small"
-                      @click="downloadFile(link.url, link.filename)"
-                    >
-                      <el-icon><Download /></el-icon>
-                      {{ link.filename }}
-                    </el-button>
+                  <div v-else>
+                    {{ message.content }}
                   </div>
                 </div>
-              </div>
-
-              <!-- 一般消息 -->
-              <div v-else class="general-message">
-                <div class="message-text">{{ message.content }}</div>
               </div>
             </div>
 
@@ -189,53 +192,86 @@
               />
             </div>
           </div>
-        </div>
 
-        <!-- 加载指示器 -->
-        <div v-if="isTyping" class="typing-indicator">
-          <div class="typing-avatar">
-            <el-icon><Cpu /></el-icon>
-          </div>
-          <div class="typing-content">
-            <div class="typing-dots">
-              <span></span>
-              <span></span>
-              <span></span>
+          <!-- 加载指示器 -->
+          <div v-if="isTyping" class="typing-indicator">
+            <div class="agent-logo">
+              <span>{{ getAgentShortName(props.agentType) }}</span>
             </div>
-            <div class="typing-text">{{ currentAgentName }} 正在思考...</div>
+            <div class="typing-content">
+              <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <div class="typing-text">{{ currentAgentName }} 正在思考...</div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 输入区域 -->
-    <div class="chat-input-area" v-if="!isExecuting">
-      <div class="input-container">
-        <el-input
-          v-model="userInput"
-          type="textarea"
-          :autosize="{ minRows: 1, maxRows: 4 }"
-          placeholder="请描述您需要的分析任务..."
-          @keydown.enter.prevent="handleSendMessage"
-          class="user-input"
-        />
-        <el-button
-          type="primary"
-          :disabled="!userInput.trim() || isTyping"
-          @click="handleSendMessage"
-          class="send-button"
-        >
-          <el-icon><Promotion /></el-icon>
+
+      <!-- 输入区域 -->
+      <div class="chat-input-area" v-if="!isExecuting">
+        <div class="input-container">
+          <el-input
+            v-model="userInput"
+            type="textarea"
+            :autosize="{ minRows: 1, maxRows: 4 }"
+            placeholder="请描述您需要的分析任务..."
+            @keydown.enter.prevent="handleSendMessage"
+            class="user-input"
+          />
+          <el-button
+            type="primary"
+            :disabled="!userInput.trim() || isTyping"
+            @click="handleSendMessage"
+            class="send-button"
+          >
+            <el-icon><Promotion /></el-icon>
+          </el-button>
+        </div>
+      </div>
+
+      <!-- 控制按钮 -->
+      <div class="chat-controls" v-if="isExecuting">
+        <el-button @click="stopExecution" type="danger" size="small">
+          <el-icon><VideoPause /></el-icon>
+          停止执行
         </el-button>
       </div>
     </div>
 
-    <!-- 控制按钮 -->
-    <div class="chat-controls" v-if="isExecuting">
-      <el-button @click="stopExecution" type="danger" size="small">
-        <el-icon><VideoPause /></el-icon>
-        停止执行
-      </el-button>
+    <!-- 右侧面板：工具调用信息 -->
+    <div class="chat-sidebar" v-if="currentToolCalls.length > 0">
+      <div class="sidebar-header">
+        <h3>{{ currentAgentName }} 调用工具</h3>
+      </div>
+      <div class="sidebar-content">
+        <div class="tool-info">
+          <h4>查询</h4>
+          <div class="tool-query">{{ currentQuery }}</div>
+          
+          <h4>结果数量</h4>
+          <div class="tool-result-count">{{ currentToolCalls.length }}</div>
+          
+          <h4>结果</h4>
+          <div class="tool-results">
+            <div v-for="(result, index) in currentToolCalls" :key="index" class="tool-result-item">
+              <div class="result-number">{{ index + 1 }}</div>
+              <div class="result-content">
+                <div v-if="result.title" class="result-title">{{ result.title }}</div>
+                <div v-if="result.url" class="result-url">
+                  <span>URL:</span> <a :href="result.url" target="_blank">{{ result.url }}</a>
+                </div>
+                <div v-if="result.description" class="result-description">
+                  <span>Description:</span> {{ result.description }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -272,6 +308,14 @@ const isTyping = ref(false)
 const isExecuting = ref(false)
 const currentAgentName = ref('')
 const currentExecutionId = ref(null)
+const currentToolCalls = ref([])
+const currentQuery = ref('')
+
+// 智能规划相关
+const hasPlanningMessage = ref(false)
+const planningMessage = ref('')
+const planningSteps = ref([])
+const showPlanningDetails = ref(false)
 
 // WebSocket连接
 let websocket = null
@@ -286,9 +330,16 @@ const agentNames = {
   'knowledge_base': '知识库智能体'
 }
 
+// 品牌标识
+const brandName = 'KunlunSec'
+
 // 方法
 const getAgentName = (agentType) => {
   return agentNames[agentType] || agentType
+}
+
+const getAgentShortName = (agentType) => {
+  return brandName
 }
 
 const formatTime = (timestamp) => {
@@ -324,6 +375,11 @@ const getToolCallStatus = (status) => {
   return types[status] || 'info'
 }
 
+// 切换规划详情显示
+const togglePlanningDetails = () => {
+  showPlanningDetails.value = !showPlanningDetails.value
+}
+
 // 发送消息
 const handleSendMessage = async () => {
   if (!userInput.value.trim() || isTyping.value) return
@@ -347,6 +403,8 @@ const startAgentExecution = async (userRequest) => {
     isExecuting.value = true
     isTyping.value = true
     currentAgentName.value = getAgentName(props.agentType)
+    currentToolCalls.value = []
+    currentQuery.value = ''
 
     emit('execution-start')
 
@@ -475,12 +533,15 @@ const handleStreamData = async (data) => {
     case 'planning':
     case 'plan':
       // 智能步骤分配
+      planningMessage.value = data.message || data.data?.message || '正在分析任务需求并制定执行计划...'
+      planningSteps.value = data.steps || data.data?.steps || []
+      hasPlanningMessage.value = true
+      
       addMessage({
         type: 'agent',
         agentType: props.agentType,
         stepType: 'planning',
-        content: data.message || data.data?.message || '正在分析任务需求并制定执行计划...',
-        steps: data.steps || data.data?.steps || [],
+        content: planningMessage.value,
         timestamp: new Date()
       })
       break
@@ -488,12 +549,20 @@ const handleStreamData = async (data) => {
     case 'step_start':
     case 'start':
       // 步骤开始
+      const stepNumber = messages.value.filter(m => m.stepType === 'execution').length + 1
+      const stepName = data.step_name || data.data?.step_name || '执行步骤'
+      
       addMessage({
         type: 'agent',
         agentType: props.agentType,
         stepType: 'execution',
-        stepName: data.step_name || data.data?.step_name || '执行步骤',
-        content: data.message || data.data?.message || `开始执行: ${data.step_name || data.data?.step_name || '执行步骤'}`,
+        stepNumber: stepNumber,
+        stepName: stepName,
+        stepInputOutput: data.step_io || data.data?.step_io || '',
+        content: data.message || data.data?.message || `开始执行: ${stepName}`,
+        collectedInfo: data.collected_info || data.data?.collected_info || '',
+        nextAction: data.next_action || data.data?.next_action || '',
+        tools: data.tools || data.data?.tools || [],
         progress: 0,
         timestamp: new Date()
       })
@@ -502,12 +571,35 @@ const handleStreamData = async (data) => {
     case 'step_progress':
     case 'progress':
       // 步骤进度更新
-      updateLastMessage({
+      const updateData = {
         progress: data.progress || data.data?.progress,
         content: data.message || data.data?.message,
-        realTimeOutput: data.output || data.data?.output,
-        toolCalls: data.tool_calls || data.data?.tool_calls
-      })
+        collectedInfo: data.collected_info || data.data?.collected_info,
+        nextAction: data.next_action || data.data?.next_action,
+        realTimeOutput: data.output || data.data?.output
+      }
+      
+      // 如果有工具调用信息
+      if (data.tool_calls && data.tool_calls.length > 0) {
+        updateData.tools = data.tool_calls.map(tool => ({
+          type: tool.tool || 'unknown',
+          name: tool.tool || 'unknown',
+          input: tool.input || {}
+        }))
+        
+        // 支持网络搜索结果显示
+        if (data.tool_calls[0].tool === 'web_search') {
+          currentQuery.value = data.tool_calls[0].input
+          const results = data.tool_calls[0].output?.results || []
+          currentToolCalls.value = results.map(result => ({
+            title: result.title,
+            url: result.url,
+            description: result.description
+          }))
+        }
+      }
+      
+      updateLastMessage(updateData)
       break
       
     case 'step_completed':
@@ -517,7 +609,9 @@ const handleStreamData = async (data) => {
       updateLastMessage({
         status: 'completed',
         progress: 100,
-        content: data.message || data.data?.message || '步骤执行完成'
+        content: data.message || data.data?.message || '步骤执行完成',
+        collectedInfo: data.collected_info || data.data?.collected_info,
+        nextAction: data.next_action || data.data?.next_action
       })
       break
       
@@ -613,6 +707,8 @@ const downloadFile = (url, filename) => {
 // 清空聊天
 const clearChat = () => {
   messages.value = []
+  currentToolCalls.value = []
+  currentQuery.value = ''
 }
 
 // 暴露方法
@@ -624,11 +720,14 @@ defineExpose({
 
 // 生命周期
 onMounted(() => {
+  // 清空之前的消息
+  clearChat()
+  
   // 添加欢迎消息
   addMessage({
     type: 'agent',
     agentType: props.agentType,
-    content: `您好！我是${getAgentName(props.agentType)}，请告诉我您需要进行什么分析？`,
+    content: `您好！我是${brandName}，请告诉我您需要进行什么分析？`,
     timestamp: new Date()
   })
 })
@@ -646,9 +745,18 @@ onUnmounted(() => {
 <style scoped>
 .agent-chat {
   display: flex;
-  flex-direction: column;
   height: 100%;
-  background: var(--el-bg-color);
+  background: #f5f7fa;
+}
+
+/* 主聊天区域 */
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid #e4e7ed;
+  position: relative;
 }
 
 .chat-container {
@@ -666,281 +774,252 @@ onUnmounted(() => {
 .message-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  margin-bottom: 16px;
 }
 
-.message-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.message-avatar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  background: var(--el-fill-color-light);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.agent-avatar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.message-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.message-time {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-.message-content {
-  padding-left: 16px;
-}
-
+/* 用户消息样式 - 右侧显示 */
 .user-message {
-  background: var(--el-color-primary-light-9);
-  padding: 12px 16px;
-  border-radius: 12px;
-  border-left: 3px solid var(--el-color-primary);
-}
-
-.agent-message {
-  background: var(--el-fill-color-lighter);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.planning-section,
-.execution-section,
-.result-section {
-  padding: 16px;
-}
-
-.planning-section h4,
-.execution-section h4,
-.result-section h4 {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 12px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-}
-
-.planned-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.planned-step {
-  display: flex;
+  flex-direction: row;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  transition: all 0.2s ease;
+  justify-content: flex-end;
+  margin: 16px 0;
 }
 
-.planned-step.active {
-  border-color: var(--el-color-warning);
-  background: var(--el-color-warning-light-9);
-}
-
-.planned-step.completed {
-  border-color: var(--el-color-success);
-  background: var(--el-color-success-light-9);
-}
-
-.step-number {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--el-color-primary);
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.step-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.step-title {
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.step-description {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  margin-bottom: 8px;
-}
-
-.step-tools {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.step-status {
-  display: flex;
-  align-items: center;
-  color: var(--el-color-success);
-}
-
-.spinning {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.execution-progress {
-  margin: 12px 0;
-}
-
-.tool-calls {
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.tool-call {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-radius: 6px;
-  padding: 8px;
-}
-
-.tool-call-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.tool-name {
-  font-weight: 500;
-}
-
-.tool-call-content {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-.real-time-output {
-  margin-top: 12px;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.output-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--el-fill-color-light);
-  border-bottom: 1px solid var(--el-border-color);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.output-content {
-  padding: 8px 12px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.output-content pre {
-  margin: 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 11px;
-  line-height: 1.4;
-  white-space: pre-wrap;
-}
-
-.result-data {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 12px 0;
-  padding: 12px;
-  background: var(--el-bg-color);
-  border-radius: 6px;
-}
-
-.result-item {
-  font-size: 14px;
-}
-
-.download-links {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.system-message {
-  margin-left: 16px;
-}
-
-.typing-indicator {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.typing-avatar {
+.user-message .message-header {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--el-fill-color-light);
+  background: #e6f1ff;
+  color: #409eff;
+}
+
+.user-message .message-content {
+  background: #ecf5ff;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #d9ecff;
+  max-width: 80%;
+  text-align: center;
+  font-size: 15px;
+  color: #333;
+}
+
+/* 智能体消息样式 - 左侧显示 */
+.agent-message {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  justify-content: flex-start;
+  margin: 16px 0;
+}
+
+.agent-message .message-header {
+  display: flex;
+  align-items: center;
+}
+
+.agent-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #ff9500;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.agent-message .message-content {
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  max-width: 100%;
+  min-width: 80%;
+  text-align: center;
+  font-size: 15px;
+  color: #333;
+}
+
+.execution-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ebeef5;
+  margin-bottom: 8px;
+}
+
+.step-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-number {
+  font-weight: 600;
+  color: #f56c6c;
+}
+
+.step-io {
+  font-size: 12px;
+  color: #909399;
+  background: #f5f7fa;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.step-timestamp {
+  font-size: 12px;
+  color: #909399;
+}
+
+.step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.step-section {
+  text-align: left;
+  padding: 8px;
+  background: #ffffff;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid #ebeef5;
+}
+
+.section-title {
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed #ebeef5;
+  padding-bottom: 4px;
+}
+
+.section-content {
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: #606266;
+}
+
+.tools-list {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tool-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f5f7fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-right: 8px;
+}
+
+.tool-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.tool-name {
+  font-size: 12px;
+  color: #606266;
+}
+
+/* 步骤进度条 */
+.step-progress {
+  margin-top: 12px;
+}
+
+.message-text {
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* 系统消息样式 */
+.system-message {
+  margin-left: 44px;
+  margin-right: 44px;
+  text-align: center;
+}
+
+/* 输入区域 */
+.chat-input-area {
+  padding: 16px;
+  border-top: 1px solid #e4e7ed;
+  background: white;
+}
+
+.input-container {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.user-input {
+  flex: 1;
+}
+
+.send-button {
+  flex-shrink: 0;
+}
+
+/* 控制按钮 */
+.chat-controls {
+  padding: 12px 16px;
+  border-top: 1px solid #e4e7ed;
+  background: #f5f7fa;
+  text-align: center;
+}
+
+/* 打字指示器 */
+.typing-indicator {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-left: 16px;
 }
 
 .typing-content {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .typing-dots {
   display: flex;
   gap: 4px;
-  margin-bottom: 4px;
 }
 
 .typing-dots span {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--el-color-primary);
+  background: #f56c6c;
   animation: typing 1.4s infinite;
 }
 
@@ -965,41 +1044,425 @@ onUnmounted(() => {
 
 .typing-text {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: #909399;
 }
 
-.chat-input-area {
-  padding: 16px;
-  border-top: 1px solid var(--el-border-color);
-  background: var(--el-bg-color);
-}
-
-.input-container {
+/* 右侧面板样式 */
+.chat-sidebar {
+  width: 320px;
   display: flex;
-  gap: 12px;
-  align-items: flex-end;
+  flex-direction: column;
+  background: white;
+  border-left: 1px solid #e4e7ed;
 }
 
-.user-input {
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.sidebar-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.sidebar-content {
   flex: 1;
+  overflow-y: auto;
+  padding: 16px;
 }
 
-.send-button {
-  flex-shrink: 0;
+.tool-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.chat-controls {
-  padding: 12px 16px;
-  border-top: 1px solid var(--el-border-color);
-  background: var(--el-fill-color-lighter);
+.tool-info h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #606266;
+  margin: 0 0 8px 0;
+}
+
+.tool-query {
+  background: #f5f7fa;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  border: 1px solid #e4e7ed;
+}
+
+.tool-result-count {
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.tool-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tool-result-item {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+}
+
+.result-number {
+  font-weight: 600;
+  color: #606266;
+}
+
+.result-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-title {
+  font-weight: 500;
+}
+
+.result-url, .result-description {
+  font-size: 12px;
+  color: #606266;
+  word-break: break-all;
+}
+
+.result-url a {
+  color: #409eff;
+  text-decoration: none;
+}
+
+.result-url a:hover {
+  text-decoration: underline;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .agent-chat {
+    flex-direction: column;
+  }
+  
+  .chat-sidebar {
+    width: 100%;
+    max-height: 300px;
+  }
+}
+
+/* 结果展示相关样式 */
+.result-data {
   text-align: center;
 }
 
-.general-message {
-  padding: 12px 16px;
+.structured-result {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  text-align: left;
 }
 
-.message-text {
-  line-height: 1.6;
+.summary-section {
+  margin-bottom: 12px;
+}
+
+.summary-section h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #333;
+  font-size: 16px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.summary-overview {
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.summary-achievements,
+.summary-issues,
+.summary-recommendations {
+  margin-bottom: 12px;
+}
+
+.summary-achievements strong,
+.summary-issues strong,
+.summary-recommendations strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #555;
+}
+
+.summary-achievements ul,
+.summary-issues ul,
+.summary-recommendations ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.summary-achievements li,
+.summary-issues li,
+.summary-recommendations li {
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
+.summary-issues strong {
+  color: #e74c3c;
+}
+
+.summary-recommendations strong {
+  color: #2ecc71;
+}
+
+.json-result {
+  background-color: #f5f5f5;
+  padding: 10px;
+  border-radius: 4px;
+  font-family: monospace;
+  overflow-x: auto;
+  font-size: 13px;
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.string-result {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .structured-result {
+    padding: 10px;
+  }
+  
+  .json-result {
+    font-size: 12px;
+  }
+}
+
+/* 智能规划样式 */
+.planning-fixed {
+  /* position: sticky; */
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+  background: #f5f7fa;
+  padding: 2px;
+  border-bottom: 1px solid #e4e7ed;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 16px;
+  
+}
+
+.planning-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+  text-align: center;
+  border: 1px solid #ebeef5;
+}
+
+.planning-header {
+  display: flex;
+  align-items: center;
+  justify-content:space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  
+}
+.planning-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.planning-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.planning-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #409eff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.planning-title {
+  font-weight: 600;
+  color: #303133;
+  font-size: 16px;
+}
+
+.planning-steps-count {
+  background: #409eff;
+  color: white;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin: 0 8px;
+}
+
+.planning-details-btn {
+  padding: 2px 8px !important;
+  height: auto !important;
+  font-size: 12px !important;
+}
+
+.planning-message {
+  color: #606266;
+  line-height: 1.5;
+  text-align: center;
+  font-weight: 500;
+  padding: 8px 0;
+}
+
+.planning-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  border-top: 1px solid #ebeef5;
+  padding-top: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.planning-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  background: #ffffff;
+  border: 1px solid #ebeef5;
+  text-align: left;
+}
+
+.planning-step-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #409eff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.planning-step-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.planning-step-title {
+  font-weight: 600;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.planning-step-description {
+  font-size: 12px;
+  color: #606266;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.planning-step-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.tool-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: #f0f2f5;
+  color: #606266;
+}
+
+.planning-step-status {
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.status-pending {
+  background: #e6f1ff;
+  color: #409eff;
+}
+
+.status-running {
+  background: #fdf6ec;
+  color: #e6a23c;
+}
+
+.status-completed {
+  background: #f0f9eb;
+  color: #67c23a;
+}
+
+.status-failed {
+  background: #fef0f0;
+  color: #f56c6c;
+}
+
+/* 工具图标样式 */
+.tool-web_search {
+  background: #409eff;
+}
+
+.tool-bash {
+  background: #67c23a;
+}
+
+.tool-file_operator {
+  background: #e6a23c;
+}
+
+.tool-deep_research {
+  background: #9254de;
+}
+
+.tool-create_chat_completion {
+  background: #f56c6c;
+}
+
+.tool-terminate {
+  background: #909399;
 }
 </style>

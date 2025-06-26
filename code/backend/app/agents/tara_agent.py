@@ -5,11 +5,13 @@ TARA智能体
 
 from typing import Any, Dict, List, Optional
 import json
+import uuid
 from datetime import datetime
 
-from .base_agent import BaseAgent
+from .base_agent import BaseAgent, AgentStep, AgentPlan
 from app.core.llm_client import LLMClientManager
 from app.core.tool_registry import ToolRegistry
+from loguru import logger
 
 
 class TARAAgent(BaseAgent):
@@ -27,10 +29,231 @@ class TARAAgent(BaseAgent):
             llm_manager=llm_manager,
             tool_registry=tool_registry
         )
+        self.logger = logger
     
     def get_agent_type(self) -> str:
         """获取智能体类型"""
         return "tara"
+    
+    async def _generate_plan(self, user_request: str, context: Dict[str, Any] = None) -> AgentPlan:
+        """生成TARA分析计划"""
+        default_steps = [
+            AgentStep(
+                step_id=str(uuid.uuid4()),
+                name="资产识别",
+                description="识别需要保护的关键资产",
+                tool_name="asset_analyzer",
+                parameters={},
+                dependencies=[]
+            ),
+            AgentStep(
+                step_id=str(uuid.uuid4()),
+                name="威胁分析",
+                description="分析可能的威胁和攻击向量",
+                tool_name="threat_analyzer",
+                parameters={},
+                dependencies=[]
+            ),
+            AgentStep(
+                step_id=str(uuid.uuid4()),
+                name="风险评估",
+                description="评估每个威胁的风险等级",
+                tool_name="risk_analyzer",
+                parameters={},
+                dependencies=[]
+            ),
+            AgentStep(
+                step_id=str(uuid.uuid4()),
+                name="缓解建议",
+                description="生成缓解措施建议",
+                tool_name="mitigation_recommender",
+                parameters={},
+                dependencies=[]
+            )
+        ]
+        
+        return AgentPlan(
+            plan_id=str(uuid.uuid4()),
+            description="TARA分析计划",
+            steps=default_steps
+        )
+    
+    async def execute_step(self, step: AgentStep, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """执行TARA分析步骤"""
+        try:
+            self.logger.info(f"执行TARA分析步骤: {step.name}")
+            
+            # 执行相应的步骤
+            if "资产" in step.name:
+                return await self._analyze_assets(context)
+            elif "威胁" in step.name:
+                return await self._analyze_threats(context)
+            elif "风险" in step.name:
+                return await self._analyze_risks(context)
+            elif "缓解" in step.name:
+                return await self._generate_mitigations(context)
+            else:
+                return {"success": False, "error": f"未知步骤: {step.name}"}
+                
+        except Exception as e:
+            self.logger.error(f"执行步骤失败 {step.name}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "step_id": step.step_id,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+    
+    async def _analyze_assets(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """分析系统资产"""
+        system_prompt = self._build_tara_system_prompt()
+        user_prompt = f"""
+请识别以下系统的关键资产:
+
+系统描述: {context.get('user_request', '车联网系统')}
+详细信息: {json.dumps(context.get('context', {}), ensure_ascii=False, indent=2)}
+
+请提供:
+1. 资产列表
+2. 资产分类
+3. 资产重要性评级
+4. 保护需求
+
+以JSON格式返回结果。
+"""
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        response = await self.llm_manager.generate_response(messages)
+        assets_result = self._parse_tara_response(response)
+        
+        return {
+            "success": True,
+            "result": assets_result,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _analyze_threats(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """分析威胁"""
+        assets = context.get('previous_results', {}).get('资产识别', {})
+        
+        system_prompt = self._build_tara_system_prompt()
+        user_prompt = f"""
+基于以下资产信息，分析可能的威胁:
+
+资产信息: {json.dumps(assets, ensure_ascii=False, indent=2)}
+系统描述: {context.get('user_request', '车联网系统')}
+
+请使用STRIDE方法分析威胁:
+- Spoofing (欺骗)
+- Tampering (篡改)
+- Repudiation (抵赖)
+- Information Disclosure (信息泄露)
+- Denial of Service (拒绝服务)
+- Elevation of Privilege (权限提升)
+
+对每个威胁，提供:
+1. 威胁ID和名称
+2. 威胁类别(STRIDE)
+3. 详细描述
+4. 可能的攻击向量
+5. 受影响资产
+
+以JSON格式返回结果。
+"""
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        response = await self.llm_manager.generate_response(messages)
+        threats_result = self._parse_tara_response(response)
+        
+        return {
+            "success": True,
+            "result": threats_result,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _analyze_risks(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """评估风险等级"""
+        previous_results = context.get('previous_results', {})
+        threats = previous_results.get('威胁分析', {})
+        
+        system_prompt = self._build_tara_system_prompt()
+        user_prompt = f"""
+基于以下威胁信息，评估风险等级:
+
+威胁信息: {json.dumps(threats, ensure_ascii=False, indent=2)}
+
+对每个威胁，提供风险评估:
+1. 风险等级(1-10)
+2. 影响评估(安全、隐私、财务、操作)
+3. 可能性评估
+4. 风险评估理由
+
+风险等级标准:
+- 极高(9-10): 严重安全或隐私风险，可能导致生命危险或重大损失
+- 高(7-8): 重要安全或业务功能受损，可能造成显著损失
+- 中(4-6): 影响系统功能，但不会造成严重损失
+- 低(1-3): 轻微影响，容易修复或规避
+
+以JSON格式返回结果。
+"""
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        response = await self.llm_manager.generate_response(messages)
+        risks_result = self._parse_tara_response(response)
+        
+        return {
+            "success": True,
+            "result": risks_result,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _generate_mitigations(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """生成缓解措施建议"""
+        previous_results = context.get('previous_results', {})
+        threats = previous_results.get('威胁分析', {})
+        risks = previous_results.get('风险评估', {})
+        
+        system_prompt = self._build_tara_system_prompt()
+        user_prompt = f"""
+基于以下威胁和风险信息，提供缓解措施建议:
+
+威胁信息: {json.dumps(threats, ensure_ascii=False, indent=2)}
+风险评估: {json.dumps(risks, ensure_ascii=False, indent=2)}
+
+请提供:
+1. 针对高风险威胁的优先缓解措施
+2. 每个措施的实施难度和预期效果
+3. 符合行业标准的安全控制建议
+4. 测试和验证方法
+
+以JSON格式返回结果。
+"""
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        response = await self.llm_manager.generate_response(messages)
+        mitigations_result = self._parse_tara_response(response)
+        
+        return {
+            "success": True,
+            "result": mitigations_result,
+            "timestamp": datetime.utcnow().isoformat()
+        }
     
     async def execute(
         self,
@@ -186,6 +409,29 @@ class TARAAgent(BaseAgent):
         
         return prompt
     
+    def _calculate_confidence_score(self, tara_result: Dict[str, Any]) -> float:
+        """计算分析结果的置信度分数"""
+        score = 0.0
+        
+        # 基于结果完整性计算
+        if "summary" in tara_result and tara_result["summary"]:
+            score += 0.2
+        
+        if "assets" in tara_result and len(tara_result["assets"]) > 0:
+            score += 0.2
+        
+        if "threats" in tara_result and len(tara_result["threats"]) > 0:
+            score += 0.2
+        
+        if "risks" in tara_result and len(tara_result["risks"]) > 0:
+            score += 0.2
+        
+        if "recommendations" in tara_result and len(tara_result["recommendations"]) > 0:
+            score += 0.2
+        
+        # 上限为1.0
+        return min(score, 1.0)
+    
     def _parse_tara_response(self, response: str) -> Dict[str, Any]:
         """解析TARA分析响应"""
         try:
@@ -198,107 +444,91 @@ class TARAAgent(BaseAgent):
                 if field not in result:
                     result[field] = []
             
-            # 确保每个威胁都有ID
-            for i, threat in enumerate(result.get("threats", [])):
-                if "id" not in threat:
-                    threat["id"] = f"T{i+1:03d}"
-            
-            # 确保每个风险都关联威胁
-            for risk in result.get("risks", []):
-                if "threat_id" not in risk and result.get("threats"):
-                    risk["threat_id"] = result["threats"][0].get("id", "T001")
-            
             return result
-            
         except json.JSONDecodeError:
-            # 如果不是JSON格式，尝试提取关键信息
+            # 如果无法解析为JSON，尝试提取信息
             return self._extract_tara_info(response)
     
     def _extract_tara_info(self, response: str) -> Dict[str, Any]:
         """从非JSON响应中提取TARA信息"""
-        lines = response.split('\n')
+        import re
         
+        # 默认结果
         result = {
-            "summary": "TARA分析完成",
+            "summary": "",
             "assets": [],
             "threats": [],
             "risks": [],
             "recommendations": [],
-            "raw_response": response
+            "compliance_notes": "",
+            "raw_response": response  # 保存原始响应
         }
         
-        # 简单的关键词提取
-        threat_keywords = ["威胁", "threat", "攻击", "attack", "漏洞", "vulnerability"]
-        risk_keywords = ["风险", "risk", "危险", "danger"]
-        recommendation_keywords = ["建议", "recommendation", "措施", "measure", "防护", "protection"]
+        # 尝试提取概要信息
+        summary_match = re.search(r'#*\s*概要|总结|Summary(.*?)(?=#|\n\n|$)', response, re.DOTALL | re.IGNORECASE)
+        if summary_match:
+            result["summary"] = summary_match.group(1).strip()
         
-        for line in lines:
-            line = line.strip()
-            if any(keyword in line.lower() for keyword in threat_keywords):
-                result["threats"].append({
-                    "id": f"T{len(result['threats'])+1:03d}",
-                    "name": line,
-                    "category": "未分类",
-                    "description": line
-                })
-            elif any(keyword in line.lower() for keyword in risk_keywords):
-                result["risks"].append({
-                    "threat_id": f"T{len(result['risks'])+1:03d}",
-                    "risk_level": "中",
-                    "risk_score": 5,
-                    "justification": line
-                })
-            elif any(keyword in line.lower() for keyword in recommendation_keywords):
-                result["recommendations"].append({
-                    "priority": "中",
-                    "category": "一般建议",
-                    "description": line,
-                    "implementation_effort": "中等",
-                    "expected_impact": "中等"
-                })
+        # 尝试提取资产信息
+        assets_section = re.search(r'#*\s*资产|Assets(.*?)(?=#|\n\n|$)', response, re.DOTALL | re.IGNORECASE)
+        if assets_section:
+            assets_text = assets_section.group(1)
+            asset_items = re.findall(r'[-*]\s*(.*?)(?=[-*]|\n\n|$)', assets_text, re.DOTALL)
+            for item in asset_items:
+                if item.strip():
+                    result["assets"].append({
+                        "name": item.strip(),
+                        "description": item.strip()
+                    })
+        
+        # 尝试提取威胁信息
+        threats_section = re.search(r'#*\s*威胁|Threats(.*?)(?=#|\n\n|$)', response, re.DOTALL | re.IGNORECASE)
+        if threats_section:
+            threats_text = threats_section.group(1)
+            threat_items = re.findall(r'[-*]\s*(.*?)(?=[-*]|\n\n|$)', threats_text, re.DOTALL)
+            for i, item in enumerate(threat_items):
+                if item.strip():
+                    result["threats"].append({
+                        "id": f"T{i+1}",
+                        "name": item.strip(),
+                        "description": item.strip()
+                    })
+        
+        # 尝试提取建议信息
+        recom_section = re.search(r'#*\s*建议|推荐|Recommendations(.*?)(?=#|\n\n|$)', response, re.DOTALL | re.IGNORECASE)
+        if recom_section:
+            recom_text = recom_section.group(1)
+            recom_items = re.findall(r'[-*]\s*(.*?)(?=[-*]|\n\n|$)', recom_text, re.DOTALL)
+            for item in recom_items:
+                if item.strip():
+                    result["recommendations"].append({
+                        "description": item.strip(),
+                        "priority": "中"
+                    })
+        
+        # 如果没有提取到内容，设置一个基本概要
+        if not result["summary"] and not result["assets"] and not result["threats"]:
+            result["summary"] = "无法解析TARA分析结果为结构化数据，请参考原始响应。"
         
         return result
     
-    def _calculate_confidence_score(self, tara_result: Dict[str, Any]) -> float:
-        """计算分析置信度分数"""
-        score = 0.0
-        
-        # 基于结果完整性计算置信度
-        if tara_result.get("summary"):
-            score += 0.2
-        if tara_result.get("assets"):
-            score += 0.2
-        if tara_result.get("threats"):
-            score += 0.3
-        if tara_result.get("risks"):
-            score += 0.2
-        if tara_result.get("recommendations"):
-            score += 0.1
-        
-        # 基于结果详细程度调整
-        threat_count = len(tara_result.get("threats", []))
-        if threat_count >= 5:
-            score += 0.1
-        elif threat_count >= 3:
-            score += 0.05
-        
-        risk_count = len(tara_result.get("risks", []))
-        if risk_count >= 3:
-            score += 0.1
-        elif risk_count >= 1:
-            score += 0.05
-        
-        return min(score, 1.0)
-    
     def get_available_tools(self) -> Dict[str, Dict[str, Any]]:
-        """获取TARA专用工具"""
-        tools = super().get_available_tools()
-        
-        # 过滤出TARA相关的工具
-        tara_tools = {}
-        for tool_name, tool_info in tools.items():
-            if any(keyword in tool_name.lower() for keyword in 
-                   ["tara", "threat", "risk", "security", "analysis"]):
-                tara_tools[tool_name] = tool_info
-        
-        return tara_tools 
+        """获取可用的工具列表"""
+        return {
+            "asset_analyzer": {
+                "description": "分析系统资产",
+                "parameters": {}
+            },
+            "threat_analyzer": {
+                "description": "识别和分析威胁",
+                "parameters": {}
+            },
+            "risk_calculator": {
+                "description": "计算风险等级",
+                "parameters": {}
+            },
+            "mitigation_recommender": {
+                "description": "推荐缓解措施",
+                "parameters": {}
+            }
+        } 

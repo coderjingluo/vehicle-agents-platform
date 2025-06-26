@@ -67,8 +67,8 @@ class Settings(BaseSettings):
         return self.allowed_origins
     
     # AI模型配置
-    openai_api_key: Optional[str] = Field(default=None, description="OpenAI API密钥")
-    openai_api_base: str = Field(default="https://api.openai.com/v1", description="OpenAI API基础URL")
+    openai_api_key: Optional[str] = Field(default="sk-xxx", description="OpenAI API密钥")
+    openai_api_base: str = Field(default="http://172.31.15.200:9997/v1", description="OpenAI API基础URL")
     
     deepseek_api_key: Optional[str] = Field(default=None, description="DeepSeek API密钥")
     deepseek_api_base: str = Field(default="https://api.deepseek.com/v1", description="DeepSeek API基础URL")
@@ -77,7 +77,7 @@ class Settings(BaseSettings):
     
     # 默认模型配置
     default_llm_provider: str = Field(default="openai", description="默认LLM提供商")
-    default_llm_model: str = Field(default="gpt-3.5-turbo", description="默认LLM模型")
+    default_llm_model: str = Field(default="qwen3", description="默认LLM模型")
     
     # 文件上传配置
     max_file_size: int = Field(default=10 * 1024 * 1024, description="最大文件大小(字节)")  # 10MB

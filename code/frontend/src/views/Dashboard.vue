@@ -1,7 +1,7 @@
 <template>
   <div class="cursor-dashboard">
     <!-- 左侧任务面板 -->
-    <div class="tasks-sidebar">
+    <!-- <div class="tasks-sidebar">
       <div class="sidebar-header">
         <h3>RECENT TASKS</h3>
       </div>
@@ -22,7 +22,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <!-- 中央聊天区域 -->
     <div class="chat-area">
@@ -645,13 +645,13 @@ onMounted(async () => {
 }
 
 /* ========== 左侧任务面板 ========== */
-.tasks-sidebar {
+/* .tasks-sidebar {
   width: 200px;
   background: #252526;
   border-right: 1px solid #3c3c3c;
   display: flex;
   flex-direction: column;
-}
+} */
 
 .sidebar-header {
   padding: 16px;
@@ -1069,12 +1069,12 @@ onMounted(async () => {
     flex-direction: column;
   }
   
-  .tasks-sidebar {
+  /* .tasks-sidebar {
     width: 100%;
     height: 150px;
     border-right: none;
     border-bottom: 1px solid #3c3c3c;
-  }
+  } */
   
   .tasks-list {
     display: flex;

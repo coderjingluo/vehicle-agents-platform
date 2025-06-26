@@ -195,6 +195,28 @@ class BaseAgent(ABC):
                 "agent_id": self.agent_id
             }
     
+    async def generate_plan(self, user_request: str, context: Optional[Dict[str, Any]] = None) -> AgentPlan:
+        """生成智能体执行计划，调用子类实现的_generate_plan方法"""
+        try:
+            return await self._generate_plan(user_request, context)
+        except Exception as e:
+            # 如果子类未实现_generate_plan，返回一个默认计划
+            import uuid
+            return AgentPlan(
+                plan_id=str(uuid.uuid4()),
+                description=f"{self.name}执行计划",
+                steps=[
+                    AgentStep(
+                        step_id=str(uuid.uuid4()),
+                        name="执行分析",
+                        description=f"执行{self.name}分析",
+                        tool_name=None,
+                        parameters={},
+                        dependencies=[]
+                    )
+                ]
+            )
+    
     async def generate_llm_plan(self, user_request: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """基于大模型生成执行计划"""
         
@@ -248,106 +270,149 @@ class BaseAgent(ABC):
         """流式执行 - 实时返回执行状态"""
         
         # 生成计划
-        plan_result = await self.generate_llm_plan(user_request, context)
+        plan = await self.generate_plan(user_request, context)
         
+        # 更新当前计划
+        self.current_plan = plan
+        
+        # 返回计划初始化信息
         yield {
-            "type": "plan_generated",
-            "data": plan_result
+            "type": "plan_init",
+            "plan": plan.to_dict()
         }
         
-        if not plan_result["success"]:
-            yield {
-                "type": "error",
-                "data": {"error": "计划生成失败", "details": plan_result}
-            }
-            return
+        # 逐步执行计划
+        results = {}
         
-        # 执行计划
-        try:
-            result = await self.execute(user_request, context, plan_result["plan"])
+        for step in plan.steps:
+            # 更新步骤状态
+            step.status = "running"
+            step.started_at = datetime.utcnow()
             
+            # 返回步骤开始信息
             yield {
-                "type": "execution_completed",
-                "data": result
+                "type": "step_start",
+                "step_id": step.step_id,
+                "step_name": step.name,
+                "timestamp": step.started_at.isoformat()
             }
             
-        except Exception as e:
-            yield {
-                "type": "error",
-                "data": {"error": str(e)}
-            }
+            try:
+                # 执行步骤
+                step_context = (context or {}).copy()
+                step_context.update({
+                    "previous_results": results,
+                    "plan": plan.to_dict()
+                })
+                
+                if hasattr(self, "execute_step"):
+                    step_result = await self.execute_step(step, step_context)
+                else:
+                    # 如果没有实现execute_step，使用默认方法
+                    step_result = {
+                        "success": True, 
+                        "result": f"{step.name}已执行",
+                        "step_id": step.step_id
+                    }
+                
+                # 更新步骤状态
+                step.status = "completed"
+                step.completed_at = datetime.utcnow()
+                
+                # 保存结果
+                if step_result.get("success", False):
+                    results[step.name] = step_result.get("result", {})
+                    step.result = step_result
+                
+                                # 返回步骤完成信息
+                yield {
+                    "type": "step_complete",
+                    "step_id": step.step_id,
+                    "step_name": step.name,
+                    "result": step_result,
+                    "timestamp": step.completed_at.isoformat()
+                }
+            
+            except Exception as e:
+                # 更新步骤状态
+                step.status = "failed"
+                step.error = str(e)
+                step.completed_at = datetime.utcnow()
+                
+                # 返回步骤失败信息
+                yield {
+                    "type": "step_failed",
+                    "step_id": step.step_id,
+                    "step_name": step.name,
+                    "error": str(e),
+                    "timestamp": step.completed_at.isoformat()
+                }
+                
+                # 判断是否继续执行
+                if not self._should_continue_after_failure(step):
+                    break
+        
+        # 更新计划状态
+        plan.update_progress()
+        
+        # 返回计划完成信息
+        yield {
+            "type": "plan_complete",
+            "plan": plan.to_dict(),
+            "results": results,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        # 保存到执行历史
+        self.execution_history.append(plan)
+    
+    def _should_continue_after_failure(self, failed_step: AgentStep) -> bool:
+        """判断步骤失败后是否继续执行，子类可以重写"""
+        return False
     
     def _build_system_prompt(self) -> str:
-        """构建系统提示词"""
+        """构建系统提示词，子类可以重写"""
         return f"""
-你是一个名为{self.name}的专业智能体。
-
-描述: {self.description}
-
-可用工具:
-{self._get_tools_description()}
-
-你的任务是分析用户请求，制定详细的执行计划或直接处理请求。
-
-请根据请求的复杂度选择合适的回复方式：
-1. 对于复杂任务：返回JSON格式的执行计划
-2. 对于简单任务：直接返回处理结果
-
-JSON计划格式：
-{{
-    "plan_id": "唯一计划ID",
-    "description": "计划描述",
-    "steps": [
-        {{
-            "step_id": "步骤ID",
-            "name": "步骤名称",
-            "description": "步骤描述",
-            "tool_name": "工具名称",
-            "parameters": {{"param1": "value1"}},
-            "dependencies": ["依赖的步骤ID列表"]
-        }}
-    ]
-}}
+你是一个专业的{self.name}，负责{self.description}。
+你需要按照专业标准执行任务，提供详细的分析结果和建议。
 """
     
     def _build_user_prompt(self, user_request: str, context: Optional[Dict[str, Any]] = None) -> str:
-        """构建用户提示词"""
-        prompt = f"用户请求: {user_request}"
+        """构建用户提示词，子类可以重写"""
+        prompt = f"请执行以下任务：{user_request}\n\n"
         
         if context:
-            prompt += f"\n\n上下文信息: {json.dumps(context, ensure_ascii=False, indent=2)}"
+            prompt += f"上下文信息：\n{json.dumps(context, ensure_ascii=False, indent=2)}\n\n"
+        
+        prompt += f"请提供详细的分析结果，包括所有必要的信息。"
         
         return prompt
     
     def _get_tools_description(self) -> str:
-        """获取工具描述"""
+        """获取工具描述，用于提示词"""
         tools = self.get_available_tools()
-        descriptions = []
+        if not tools:
+            return ""
         
-        for tool_name, tool in tools.items():
-            desc = f"- {tool_name}: {tool.get('description', '无描述')}"
-            if 'parameters' in tool:
-                params = tool['parameters']
-                desc += f"\n  参数: {', '.join(params.keys())}"
-            descriptions.append(desc)
+        tools_desc = "可用工具:\n"
+        for tool_name, tool_info in tools.items():
+            tools_desc += f"- {tool_name}: {tool_info.get('description', '')}\n"
         
-        return "\n".join(descriptions)
+        return tools_desc
     
     def get_available_tools(self) -> Dict[str, Dict[str, Any]]:
-        """获取可用工具列表（子类可重写以过滤工具）"""
-        return self.tool_registry.list_tools()
+        """获取可用的工具列表，子类可以重写"""
+        return {}
     
     def get_status(self) -> Dict[str, Any]:
         """获取智能体状态"""
         return {
             "agent_id": self.agent_id,
             "name": self.name,
-            "description": self.description,
-            "agent_type": self.get_agent_type(),
+            "type": self.get_agent_type(),
             "current_plan": self.current_plan.to_dict() if self.current_plan else None,
             "execution_history_count": len(self.execution_history),
-            "available_tools_count": len(self.get_available_tools()),
-            "workflow_registered": self.get_agent_type() in self.workflow_manager.agent_callbacks
+            "timestamp": datetime.utcnow().isoformat()
         }
     
     @abstractmethod
@@ -357,10 +422,10 @@ JSON计划格式：
         context: Optional[Dict[str, Any]] = None,
         plan_result: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """子类必须实现的具体执行方法"""
+        """执行智能体任务，子类必须实现"""
         pass
     
     @abstractmethod
     def get_agent_type(self) -> str:
-        """获取智能体类型（用于工作流注册）"""
+        """获取智能体类型，子类必须实现"""
         pass 

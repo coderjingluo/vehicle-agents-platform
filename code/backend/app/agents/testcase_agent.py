@@ -16,6 +16,7 @@ from datetime import datetime
 
 from app.agents.base_agent import BaseAgent, AgentStep, AgentPlan
 from app.models.task import AgentType
+from loguru import logger
 
 
 class TestCaseAgent(BaseAgent):
@@ -36,6 +37,7 @@ class TestCaseAgent(BaseAgent):
             "ISO_26262": "道路车辆功能安全",
             "GB_T_40857": "汽车网络安全技术要求"
         }
+        self.logger = logger
         
     def get_agent_type(self) -> str:
         return "test_case"

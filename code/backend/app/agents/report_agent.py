@@ -16,6 +16,7 @@ from datetime import datetime
 
 from app.agents.base_agent import BaseAgent, AgentStep, AgentPlan
 from app.models.task import AgentType
+from loguru import logger
 
 
 class ReportAgent(BaseAgent):
@@ -42,10 +43,125 @@ class ReportAgent(BaseAgent):
             "medium": {"score": 4-6, "color": "yellow", "action": "计划修复"},
             "low": {"score": 1-3, "color": "green", "action": "监控观察"}
         }
+        self.logger = logger
         
     def get_agent_type(self) -> str:
         return "report_analysis"
     
+    async def execute(
+        self,
+        user_request: str,
+        context: Optional[Dict[str, Any]] = None,
+        plan_result: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """执行报告分析流程"""
+        try:
+            self.logger.info(f"开始执行报告分析: {user_request}")
+            
+            # 生成执行计划
+            plan = await self.generate_plan(user_request, context)
+            
+            results = {}
+            all_steps_results = []
+            
+            # 逐步执行计划
+            for step in plan.steps:
+                step.status = "running"
+                step.started_at = datetime.utcnow()
+                
+                # 执行步骤
+                step_context = (context or {}).copy()
+                step_context.update({
+                    "previous_results": results,
+                    "plan": plan.to_dict()
+                })
+                step_result = await self.execute_step(step, step_context)
+                
+                # 更新步骤状态
+                step.status = "completed" if step_result.get("success", False) else "failed"
+                step.completed_at = datetime.utcnow()
+                step.result = step_result
+                
+                # 保存步骤结果
+                if step.status == "completed":
+                    results[step.name] = step_result.get("result", {})
+                    all_steps_results.append(step_result)
+                
+                # 更新计划进度
+                plan.update_progress()
+            
+            # 生成最终报告
+            final_report = await self._generate_final_report(all_steps_results, context)
+            
+            return {
+                "success": True,
+                "plan": plan.to_dict(),
+                "report": final_report,
+                "agent_type": self.get_agent_type(),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"报告分析执行失败: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "agent_type": self.get_agent_type(),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+    
+    async def _generate_final_report(self, step_results: List[Dict[str, Any]], context: Dict[str, Any]) -> Dict[str, Any]:
+        """生成最终报告"""
+        # 收集所有步骤的结果
+        data_collection = {}
+        risk_analysis = {}
+        compliance_results = {}
+        recommendations = {}
+        report_content = {}
+        
+        # 从各个步骤中提取相关信息
+        for result in step_results:
+            if not result.get("success", False) or "result" not in result:
+                continue
+                
+            step_result = result["result"]
+            if "data_sources" in result:
+                data_collection = step_result
+            elif "analysis_type" in result and result["analysis_type"] == "comprehensive_risk_assessment":
+                risk_analysis = step_result
+            elif "compliance_checks" in step_result:
+                compliance_results = step_result
+            elif "recommendations" in step_result:
+                recommendations = step_result
+            elif "report_sections" in step_result:
+                report_content = step_result
+        
+        # 构建最终报告
+        return {
+            "title": f"车联网安全测试综合报告 - {datetime.utcnow().strftime('%Y-%m-%d')}",
+            "summary": self._extract_summary(step_results),
+            "data_collection": data_collection,
+            "risk_analysis": risk_analysis,
+            "compliance": compliance_results,
+            "recommendations": recommendations,
+            "report_content": report_content,
+            "generation_time": datetime.utcnow().isoformat()
+        }
+    
+    def _extract_summary(self, step_results: List[Dict[str, Any]]) -> str:
+        """提取报告摘要"""
+        # 尝试从报告生成步骤中提取摘要
+        for result in step_results:
+            if not result.get("success", False) or "result" not in result:
+                continue
+                
+            step_result = result["result"]
+            if "report_sections" in step_result and "summary" in step_result:
+                return step_result["summary"]
+        
+        # 默认摘要
+        return "本报告综合分析了车联网系统的安全测试结果，包括威胁分析、风险评估、合规检查和修复建议。"
+        
     async def _generate_plan(self, user_request: str, context: Dict[str, Any] = None) -> AgentPlan:
         """生成报告分析计划"""
         default_steps = [

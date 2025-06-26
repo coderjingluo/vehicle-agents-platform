@@ -53,13 +53,13 @@ class BaseLLMClient(ABC):
 class OpenAIClient(BaseLLMClient):
     """OpenAI客户端"""
     
-    def __init__(self, api_key: str, api_base: str = "https://api.openai.com/v1"):
+    def __init__(self, api_key: str, api_base: str = "http://172.31.15.200:9997/v1"):
         self.api_key = api_key
         self.api_base = api_base
         self.client = ChatOpenAI(
             api_key=api_key,
             base_url=api_base,
-            model="gpt-3.5-turbo",
+            model="qwen3",
             temperature=0.7
         )
     

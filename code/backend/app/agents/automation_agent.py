@@ -16,6 +16,7 @@ from datetime import datetime
 
 from app.agents.base_agent import BaseAgent, AgentStep, AgentPlan
 from app.models.task import AgentType
+from loguru import logger
 
 
 class AutomationAgent(BaseAgent):
@@ -40,10 +41,82 @@ class AutomationAgent(BaseAgent):
             "burp_suite": "Web安全测试"
         }
         self.supported_languages = ["Python", "Java", "JavaScript", "C++", "Shell"]
+        self.logger = logger
         
     def get_agent_type(self) -> str:
         return "automation_test"
     
+    async def execute(self, user_request: str, context: Optional[Dict[str, Any]] = None, plan_result: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """执行自动化测试任务"""
+        try:
+            self.logger.info("开始执行自动化测试任务")
+            
+            # 生成执行计划
+            execution_plan = await self._generate_plan(user_request, context)
+            
+            # 结果收集
+            results = {}
+            
+            # 执行每个步骤
+            for step in execution_plan.steps:
+                step.status = "running"
+                step.started_at = datetime.utcnow()
+                
+                # 更新上下文，包含之前步骤的结果
+                step_context = (context or {}).copy()
+                step_context["previous_results"] = results
+                
+                # 执行当前步骤
+                step_result = await self.execute_step(step, step_context)
+                
+                # 更新步骤状态
+                if step_result.get("success", False):
+                    step.status = "completed"
+                    # 保存步骤结果
+                    results[step.name] = step_result.get("result", {})
+                else:
+                    step.status = "failed"
+                    step.error = step_result.get("error", "未知错误")
+                
+                step.completed_at = datetime.utcnow()
+                
+                # 如果步骤失败，可以选择继续或停止
+                if step.status == "failed" and not self._should_continue_after_failure(step):
+                    break
+            
+            # 更新计划状态
+            execution_plan.update_progress()
+            
+            # 返回最终结果
+            return {
+                "success": execution_plan.status == "completed",
+                "plan": execution_plan.to_dict(),
+                "results": results,
+                "status": execution_plan.status,
+                "timestamp": datetime.utcnow().isoformat(),
+                "progress": execution_plan.get_progress_percentage()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"自动化测试执行失败: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "status": "failed",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+    
+    def _should_continue_after_failure(self, failed_step: AgentStep) -> bool:
+        """判断步骤失败后是否继续执行"""
+        # 如果是关键步骤，失败后应停止
+        critical_keywords = ["环境配置", "框架选择"]
+        for keyword in critical_keywords:
+            if keyword in failed_step.name:
+                return False
+        
+        # 默认继续执行
+        return True
+        
     async def _generate_plan(self, user_request: str, context: Dict[str, Any] = None) -> AgentPlan:
         """生成自动化测试计划"""
         
@@ -73,8 +146,9 @@ class AutomationAgent(BaseAgent):
         
         try:
             response = await self.llm_manager.generate_response(
-                planning_prompt,
-                context={"agent_type": "automation_test", "task": "planning"}
+                messages=[{"role": "user", "content": planning_prompt}],
+                model=None,
+                temperature=0.7
             )
             
             plan_data = self._parse_json_response(response)

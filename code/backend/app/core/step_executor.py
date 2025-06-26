@@ -175,22 +175,66 @@ class StepExecutor:
                 # 参数存在，进行类型验证
                 param_def = tool_parameters[param_name]
                 
-                # 简单的类型验证
-                expected_type = param_def.get("type", "string")
-                if expected_type == "string" and not isinstance(param_value, str):
-                    param_value = str(param_value)
-                elif expected_type == "integer" and not isinstance(param_value, int):
-                    try:
-                        param_value = int(param_value)
-                    except (ValueError, TypeError):
-                        param_value = 0
-                elif expected_type == "boolean" and not isinstance(param_value, bool):
-                    param_value = bool(param_value)
+                # 处理空值
+                if param_value is None:
+                    # 如果参数是必需的
+                    if param_def.get("required", False):
+                        # 使用默认值，如果有的话
+                        if "default" in param_def:
+                            validated[param_name] = param_def["default"]
+                        else:
+                            # 否则，保留为None
+                            validated[param_name] = None
+                    continue
                 
+                # 简单的类型验证和转换
+                expected_type = param_def.get("type", "string")
+                try:
+                    if expected_type == "string":
+                        if not isinstance(param_value, str):
+                            param_value = str(param_value)
+                    elif expected_type == "integer" or expected_type == "number":
+                        if not isinstance(param_value, (int, float)):
+                            if isinstance(param_value, str) and param_value.strip():
+                                try:
+                                    if expected_type == "integer":
+                                        param_value = int(float(param_value))
+                                    else:
+                                        param_value = float(param_value)
+                                except (ValueError, TypeError):
+                                    param_value = param_def.get("default", 0)
+                            else:
+                                param_value = param_def.get("default", 0)
+                    elif expected_type == "boolean":
+                        if not isinstance(param_value, bool):
+                            if isinstance(param_value, str):
+                                param_value = param_value.lower() in ["true", "yes", "1", "t", "y"]
+                            else:
+                                param_value = bool(param_value)
+                    elif expected_type == "array" and isinstance(param_value, str):
+                        # 尝试将字符串解析为数组
+                        try:
+                            import json
+                            param_value = json.loads(param_value)
+                            if not isinstance(param_value, list):
+                                param_value = [param_value]
+                        except json.JSONDecodeError:
+                            # 如果不是JSON格式，按逗号分割
+                            param_value = [item.strip() for item in param_value.split(",") if item.strip()]
+                except Exception as e:
+                    # 转换失败，使用默认值
+                    if "default" in param_def:
+                        param_value = param_def["default"]
+                    
                 validated[param_name] = param_value
             else:
                 # 参数不在定义中，但仍然保留
                 validated[param_name] = param_value
+        
+        # 检查是否缺少必需参数，添加默认值
+        for param_name, param_def in tool_parameters.items():
+            if param_name not in validated and param_def.get("required", False) and "default" in param_def:
+                validated[param_name] = param_def["default"]
         
         return validated
     

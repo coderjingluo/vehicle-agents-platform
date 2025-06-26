@@ -136,6 +136,7 @@ class ResultAggregator:
             system_prompt = """
 请分析执行结果并生成摘要，包括执行概况、主要成果、发现的问题和改进建议。
 请以JSON格式返回，包含overview、achievements、issues、recommendations字段。
+每个字段应该提供具体、有价值的信息，而不是泛泛而谈。
 """
             
             messages = [
@@ -148,6 +149,9 @@ class ResultAggregator:
             
             try:
                 summary = json.loads(response.strip())
+                # 添加时间戳和置信度
+                summary["timestamp"] = datetime.utcnow().isoformat()
+                summary["confidence"] = self._calculate_quality_score(results)
                 return summary
             except json.JSONDecodeError:
                 return self._generate_basic_summary(results, categorized_results)
@@ -163,7 +167,32 @@ class ResultAggregator:
         """构建结果描述"""
         total_steps = len(results)
         success_count = sum(1 for r in results if r.get("status") == "completed")
-        return f"总共执行了 {total_steps} 个步骤，其中 {success_count} 个成功。"
+        failed_count = total_steps - success_count
+        
+        description = f"总共执行了 {total_steps} 个步骤，其中 {success_count} 个成功，{failed_count} 个失败。\n\n"
+        
+        # 添加分类结果概述
+        if categorized_results:
+            description += "结果分类汇总:\n"
+            for category, items in categorized_results.items():
+                description += f"- {category}: {len(items)} 个结果\n"
+            
+            # 添加关键结果详情
+            description += "\n关键结果详情:\n"
+            for category, items in categorized_results.items():
+                if category == "analysis_results" and items:
+                    for item in items[:3]:  # 最多展示前3个
+                        result_data = item.get("result", {})
+                        description += f"- {result_data.get('message', '无描述')}\n"
+        
+        # 添加错误信息
+        failed_results = [r for r in results if r.get("status") != "completed"]
+        if failed_results:
+            description += "\n执行错误:\n"
+            for failed in failed_results[:3]:  # 最多展示前3个错误
+                description += f"- {failed.get('error', '未知错误')}\n"
+        
+        return description
     
     def _generate_basic_summary(
         self,
