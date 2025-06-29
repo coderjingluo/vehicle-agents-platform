@@ -1,42 +1,40 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
-from enum import Enum
-from datetime import datetime
+"""
+KunlunSec AI Platform - 用户模型
+
+定义用户数据库模型和相关方法。
+"""
+
 import uuid
+from datetime import datetime
+from typing import Optional
 
-class UserRole(str, Enum):
-    ADMIN = "admin"
-    ANALYST = "analyst"
-    VIEWER = "viewer"
+from sqlalchemy import Boolean, Column, String, DateTime, Text
+from sqlalchemy.dialects.postgresql import UUID
 
-class UserBase(BaseModel):
-    username: str
-    email: EmailStr
-    role: UserRole = UserRole.VIEWER
+from app.db.session import Base
 
-class UserCreate(UserBase):
-    password: str
-
-class UserInDB(UserBase):
-    id: uuid.UUID
-    hashed_password: str
-    is_active: bool = True
-    created_at: datetime
-    last_login: Optional[datetime]
-
-    class Config:
-        from_attributes = True
-
-class User(UserBase):
-    id: uuid.UUID
-    is_active: bool
+class User(Base):
+    """用户模型"""
     
-    class Config:
-        from_attributes = True
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: Optional[str] = None 
+    __tablename__ = "users"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    username = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    full_name = Column(String(255))
+    
+    # 用户角色和权限
+    is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
+    
+    # 用户偏好设置（JSON格式存储）
+    preferences = Column(Text, default="{}")
+    
+    # 时间戳
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_login = Column(DateTime, nullable=True)
+    
+    def __repr__(self):
+        return f"<User {self.username}>" 

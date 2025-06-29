@@ -1,10 +1,7 @@
 """
-车联网安全测试生命周期管理平台
-Automotive Security Testing Lifecycle Management Platform
+KunlunSec AI Platform - 车联网安全测试生命周期管理平台
 
-一个基于多智能体协作的车联网安全测试平台，覆盖从TARA分析到报告生成的完整流程。
+这个文件是应用程序的入口点，初始化主要组件并设置版本信息。
 """
 
-__version__ = "1.0.0"
-__author__ = "Automotive Security Team"
-__description__ = "车联网安全测试生命周期管理平台" 
+__version__ = "1.0.0" 

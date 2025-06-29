@@ -5,7 +5,7 @@
         <div class="sidebar">
           <div class="sidebar-header">
             <h2>知识库管理</h2>
-            <el-button type="primary" size="small">
+            <el-button type="primary" size="small" class="create-kb-button">
               <el-icon><Plus /></el-icon>
               创建知识库
             </el-button>
@@ -111,13 +111,13 @@
                   <div class="doc-meta">{{ doc.size }} | {{ doc.date }}</div>
                 </div>
                 <div class="doc-actions">
-                  <el-button type="text" circle>
+                  <el-button type="text" circle class="action-btn">
                     <el-icon><View /></el-icon>
                   </el-button>
-                  <el-button type="text" circle>
+                  <el-button type="text" circle class="action-btn">
                     <el-icon><Download /></el-icon>
                   </el-button>
-                  <el-button type="text" circle>
+                  <el-button type="text" circle class="action-btn">
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
@@ -396,6 +396,17 @@ const documents = [
   gap: 5px;
 }
 
+.action-btn {
+  color: #aaa;
+  border-color: transparent;
+  background-color: transparent;
+}
+
+.action-btn:hover {
+  color: #4080ff;
+  background-color: rgba(64, 128, 255, 0.1);
+}
+
 .upload-box {
   display: flex;
   align-items: center;
@@ -425,10 +436,26 @@ const documents = [
 .upload-link {
   color: #4080ff;
   cursor: pointer;
+  transition: color 0.2s;
+}
+
+.upload-link:hover {
+  color: #3a75e6;
+  text-decoration: underline;
 }
 
 .upload-desc {
   font-size: 12px;
   margin-top: 5px;
+}
+
+.create-kb-button {
+  background-color: #4080ff;
+  border-color: #4080ff;
+}
+
+.create-kb-button:hover {
+  background-color: #3a75e6;
+  border-color: #3a75e6;
 }
 </style> 

@@ -1,158 +1,143 @@
 """
-应用配置模块
-管理所有的配置项和环境变量
+KunlunSec AI Platform - 配置管理
+
+这个模块处理应用程序的配置设置，从环境变量加载配置。
 """
 
-from typing import List, Optional
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
+import os
+import secrets
+from typing import List, Optional, Union, Dict, Any
+from pydantic import (
+    BaseSettings, 
+    PostgresDsn, 
+    RedisDsn, 
+    HttpUrl, 
+    validator, 
+    Field,
+    AnyHttpUrl
+)
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    """应用配置类"""
-    
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False
-    )
+    """应用程序设置"""
     
     # 应用基础配置
-    app_name: str = Field(default="车联网安全测试生命周期管理平台", description="应用名称")
-    app_version: str = Field(default="1.0.0", description="应用版本")
-    debug: bool = Field(default=False, description="调试模式")
+    APP_NAME: str = "车联网安全测试生命周期管理平台"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = False
     
     # 服务器配置
-    host: str = Field(default="0.0.0.0", description="服务器主机")
-    port: int = Field(default=8000, description="服务器端口")
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
     
     # 数据库配置
-    database_url: str = Field(
-        default="postgresql://admin:admin123@localhost:5432/automotive_security",
-        description="数据库连接URL"
-    )
+    DATABASE_URL: PostgresDsn
     
     # Redis配置
-    redis_url: str = Field(
-        default="redis://localhost:6379",
-        description="Redis连接URL"
-    )
+    REDIS_URL: RedisDsn
     
     # Chroma向量数据库配置
-    chroma_url: str = Field(
-        default="http://localhost:8000",
-        description="Chroma数据库连接URL"
-    )
+    CHROMA_URL: str
     
     # JWT配置
-    secret_key: str = Field(
-        default="your-secret-key-change-in-production",
-        description="JWT密钥"
-    )
-    algorithm: str = Field(default="HS256", description="JWT算法")
-    access_token_expire_minutes: int = Field(default=30, description="访问令牌过期时间(分钟)")
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
     
     # CORS配置
-    # 指定为所有源
-    allowed_origins: str = Field(
-        default="*",
-        description="允许的跨域源(逗号分隔)"
-    )
+    ALLOWED_ORIGINS: List[str] = Field(default_factory=list)
     
-    @property
-    def cors_origins(self) -> List[str]:
-        """获取CORS源列表"""
-        if isinstance(self.allowed_origins, str):
-            return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
-        return self.allowed_origins
+    @validator("ALLOWED_ORIGINS", pre=True)
+    def parse_allowed_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",")]
+        return v
     
     # AI模型配置
-    openai_api_key: Optional[str] = Field(default="sk-xxx", description="OpenAI API密钥")
-    openai_api_base: str = Field(default="http://172.31.15.200:9997/v1", description="OpenAI API基础URL")
-    
-    deepseek_api_key: Optional[str] = Field(default=None, description="DeepSeek API密钥")
-    deepseek_api_base: str = Field(default="https://api.deepseek.com/v1", description="DeepSeek API基础URL")
-    
-    anthropic_api_key: Optional[str] = Field(default=None, description="Anthropic API密钥")
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_API_BASE: Optional[str] = None
+    DEEPSEEK_API_KEY: Optional[str] = None
+    DEEPSEEK_API_BASE: Optional[str] = None
+    ANTHROPIC_API_KEY: Optional[str] = None
     
     # 默认模型配置
-    default_llm_provider: str = Field(default="openai", description="默认LLM提供商")
-    default_llm_model: str = Field(default="qwen3", description="默认LLM模型")
+    DEFAULT_LLM_PROVIDER: str = "openai"
+    DEFAULT_LLM_MODEL: str = "gpt-3.5-turbo"
+    
+    # LLM详细配置
+    LLM_MODEL: str = Field(default="gpt-4-turbo")
+    LLM_MAX_TOKENS: int = Field(default=4096)
+    LLM_TEMPERATURE: float = Field(default=0.7)
+    LLM_API_KEY: Optional[str] = None
+    LLM_BASE_URL: Optional[str] = None
+    LLM_API_TYPE: str = Field(default="openai")  # openai, azure, aws等
+    LLM_API_VERSION: Optional[str] = None
+    
+    # 多模态模型配置
+    MULTIMODAL_MODELS: List[str] = Field(default_factory=lambda: [
+        "gpt-4-vision-preview", "gpt-4o", "gpt-4o-mini",
+        "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"
+    ])
     
     # 文件上传配置
-    max_file_size: int = Field(default=10 * 1024 * 1024, description="最大文件大小(字节)")  # 10MB
-    upload_dir: str = Field(default="./uploads", description="文件上传目录")
+    MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
+    UPLOAD_DIR: str = "./uploads"
     
     # WebSocket配置
-    websocket_heartbeat_interval: int = Field(default=30, description="WebSocket心跳间隔(秒)")
+    WEBSOCKET_HEARTBEAT_INTERVAL: int = 30
     
     # Celery配置
-    celery_broker_url: str = Field(
-        default="redis://localhost:6379/0",
-        description="Celery消息代理URL"
-    )
-    celery_result_backend: str = Field(
-        default="redis://localhost:6379/0",
-        description="Celery结果后端URL"
-    )
+    CELERY_BROKER_URL: str
+    CELERY_RESULT_BACKEND: str
     
     # 日志配置
-    log_level: str = Field(default="INFO", description="日志级别")
-    log_file: str = Field(default="./logs/app.log", description="日志文件路径")
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE: str = "./logs/app.log"
     
     # 监控配置
-    enable_prometheus: bool = Field(default=True, description="启用Prometheus监控")
-    prometheus_port: int = Field(default=8001, description="Prometheus端口")
+    ENABLE_PROMETHEUS: bool = False
+    PROMETHEUS_PORT: int = 8001
     
     # 知识库配置
-    knowledge_base_collection_name: str = Field(
-        default="automotive_knowledge",
-        description="知识库集合名称"
-    )
-    embedding_model: str = Field(
-        default="sentence-transformers/all-MiniLM-L6-v2",
-        description="嵌入模型名称"
-    )
-    chunk_size: int = Field(default=1000, description="文档分块大小")
-    chunk_overlap: int = Field(default=200, description="文档分块重叠大小")
+    KNOWLEDGE_BASE_COLLECTION_NAME: str = "automotive_knowledge"
+    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    CHUNK_SIZE: int = 1000
+    CHUNK_OVERLAP: int = 200
     
     # MCP工具配置
-    mcp_timeout: int = Field(default=30, description="MCP工具调用超时时间(秒)")
-    mcp_max_retries: int = Field(default=3, description="MCP工具最大重试次数")
+    MCP_TIMEOUT: int = 30
+    MCP_MAX_RETRIES: int = 3
     
-    # Phase 4: 扩展配置
-    # 文档处理配置
-    UPLOAD_DIR: str = Field(default="./uploads", description="文件上传目录")
-    MAX_FILE_SIZE: int = Field(default=50 * 1024 * 1024, description="最大文件大小(50MB)")
-    SUPPORTED_FILE_TYPES: List[str] = Field(
-        default=["pdf", "docx", "txt", "md", "html", "json", "xml"],
-        description="支持的文件类型"
-    )
+    # 搜索API配置
+    GOOGLE_SEARCH_API_KEY: Optional[str] = None
+    GOOGLE_SEARCH_CX: Optional[str] = None
+    BING_SEARCH_API_KEY: Optional[str] = None
     
-    # 向量数据库配置
-    CHROMA_PERSIST_DIRECTORY: str = Field(default="./chroma_db", description="Chroma持久化目录")
-    CHROMA_HOST: str = Field(default="localhost", description="Chroma主机")
-    CHROMA_PORT: int = Field(default=8001, description="Chroma端口")
+    # MCP配置
+    MCP_DEFAULT_SERVER_TYPE: str = "stdio"
+    MCP_DEFAULT_COMMAND: str = "python -m mcp.server"
     
-    # 模型配置加密
-    ENCRYPTION_KEY: str = Field(
-        default="your-encryption-key-here-32-chars-long",
-        description="API密钥加密密钥(32字符)"
-    )
+    # 沙箱配置
+    SANDBOX_IMAGE: str = "ubuntu:latest"
+    SANDBOX_WORKSPACE: str = "/workspace"
     
-    # 批处理配置
-    BATCH_SIZE: int = Field(default=100, description="批处理大小")
-    MAX_CONCURRENT_TASKS: int = Field(default=10, description="最大并发任务数")
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+        # 将默认模型配置应用到LLM配置
+        if not self.LLM_API_KEY:
+            if self.LLM_API_TYPE == "openai" and self.OPENAI_API_KEY:
+                self.LLM_API_KEY = self.OPENAI_API_KEY
+            elif self.LLM_API_TYPE == "anthropic" and self.ANTHROPIC_API_KEY:
+                self.LLM_API_KEY = self.ANTHROPIC_API_KEY
+        
+        if not self.LLM_BASE_URL:
+            if self.LLM_API_TYPE == "openai" and self.OPENAI_API_BASE:
+                self.LLM_BASE_URL = self.OPENAI_API_BASE
     
-    # 缓存配置
-    CACHE_TTL: int = Field(default=3600, description="缓存过期时间(秒)")
-    ENABLE_CACHE: bool = Field(default=True, description="启用缓存")
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
 
-
-# 全局配置实例
-settings = Settings()
-
-
-def get_settings() -> Settings:
-    """获取配置实例"""
-    return settings 
+# 创建全局设置对象
+settings = Settings() 

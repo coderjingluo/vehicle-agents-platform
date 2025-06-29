@@ -1,8 +1,13 @@
 """
-数据模型模块
-包含所有的数据库模型和数据传输对象(DTO)
+KunlunSec AI Platform - 数据库模型
+
+导入所有数据库模型以便在其他地方使用。
 """
 
-from .task import Task, TaskStatus, TaskPriority, AgentType
-from .knowledge_base import KnowledgeBase, Document, KnowledgeBaseStatus
-from .model_config import ModelConfig, ModelProvider, ModelStatus 
+from app.db.session import Base
+from app.models.user import User
+from app.models.task import Task
+from app.models.knowledge import KnowledgeDocument
+from app.models.agent import AgentExecution
+from app.models.flow import Flow, FlowExecution, FlowStep
+from app.models.tool import ToolExecution 
