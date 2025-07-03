@@ -1,0 +1,37 @@
+开始API测试...
+[00:35:42] INFO     HTTP Request: POST http://localhost:8000/api/v1/auth/login "HTTP/1.1 200 OK"
+[00:35:42] INFO     登录成功，获取到令牌: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc1MTk5MjU0Mn0.fqHoldp61Mnhnn7wI7NeM5g73Y_zqLMIra12UZL6070
+[00:35:42] INFO     ✅ 测试通过: 认证登录
+[00:35:42] INFO     HTTP Request: GET http://localhost:8000/api/v1/auth/me "HTTP/1.1 200 OK"
+[00:35:42] INFO     ✅ 测试通过: 获取当前用户
+[00:35:42] INFO     HTTP Request: POST http://localhost:8000/api/v1/auth/refresh "HTTP/1.1 401 Unauthorized"
+[00:35:42] ERROR    POST http://localhost:8000/api/v1/auth/refresh 失败: Client error '401 Unauthorized' for url 'http://localhost:8000/api/v1/auth/refresh'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+[00:35:42] INFO     ✅ 测试通过: 刷新令牌API调用
+[00:35:42] INFO     HTTP Request: POST http://localhost:8000/api/v1/auth/logout "HTTP/1.1 200 OK"
+[00:35:42] INFO     ✅ 测试通过: 用户登出
+[00:35:42] INFO     HTTP Request: POST http://localhost:8000/api/v1/flow "HTTP/1.1 201 Created"
+[00:35:42] INFO     ✅ 测试通过: 创建执行流
+[00:35:42] INFO     HTTP Request: GET http://localhost:8000/api/v1/flow/c9505987-0269-4686-a35f-e92d17e0daab "HTTP/1.1 200 OK"
+[00:35:42] INFO     ✅ 测试通过: 获取执行流详情
+[00:35:42] INFO     HTTP Request: POST http://localhost:8000/api/v1/flow/c9505987-0269-4686-a35f-e92d17e0daab/execute "HTTP/1.1 200 OK"
+[00:35:42] INFO     ✅ 测试通过: 执行流
+[00:35:42] INFO     清理测试数据...
+[00:35:42] INFO     HTTP Request: DELETE http://localhost:8000/api/v1/flow/c9505987-0269-4686-a35f-e92d17e0daab "HTTP/1.1 500 Internal Server Error"
+[00:35:42] ERROR    DELETE http://localhost:8000/api/v1/flow/c9505987-0269-4686-a35f-e92d17e0daab 失败: Server error '500 Internal Server Error' for url 'http://localhost:8000/api/v1/flow/c9505987-0269-4686-a35f-e92d17e0daab'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+[00:35:42] INFO     已删除执行流: c9505987-0269-4686-a35f-e92d17e0daab
+         API测试结果         
+┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓
+┃ 测试            ┃ 结果    ┃
+┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━┩
+│ 认证登录        │ ✅ 通过 │
+│ 获取当前用户    │ ✅ 通过 │
+│ 刷新令牌API调用 │ ✅ 通过 │
+│ 用户登出        │ ✅ 通过 │
+│ 创建执行流      │ ✅ 通过 │
+│ 获取执行流详情  │ ✅ 通过 │
+│ 执行流          │ ✅ 通过 │
+└─────────────────┴─────────┘
+总计: 7 测试, 7 通过, 0 失败
+详细测试日志已保存到: /mnt/hgfs/tara_agent_platform/code/backend/detailed_api_test_results.log

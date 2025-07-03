@@ -12,9 +12,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="KunlunSec MCP Server")
     parser.add_argument(
         "--transport",
-        choices=["stdio"],
-        default="stdio",
-        help="通信方式: stdio (默认: stdio)",
+        choices=["sse"],
+        default="sse",
+        help="通信方式: sse (默认: sse)",
     )
     args = parser.parse_args()
 

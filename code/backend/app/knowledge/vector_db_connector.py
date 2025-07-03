@@ -85,7 +85,7 @@ class VectorDBConnector:
                 {
                     "document_id": chunk.document_id,
                     "chunk_index": chunk.chunk_index,
-                    **chunk.metadata
+                    **chunk.doc_metadata
                 }
                 for chunk in kb_chunk_list
             ]
@@ -114,7 +114,7 @@ class VectorDBConnector:
             metadatas=[{
                 "document_id": chunk.document_id,
                 "chunk_index": chunk.chunk_index,
-                **chunk.metadata
+                **chunk.doc_metadata
             }]
         )
         

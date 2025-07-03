@@ -6,12 +6,13 @@ KunlunSec AI Platform - 智能体模块
 
 from app.agent.base import BaseAgent, Memory, AgentState, LLM
 from app.agent.browser import BrowserAgent
-from app.agent.collaboration import CollaborationAgent
+# 移除对不存在的 CollaborationAgent 的导入
+# from app.agent.collaboration import CollaborationAgent
 from app.agent.data import DataAnalysisAgent
-from app.agent.interface import InterfaceAgent
+from app.agent.interface import AgentInterface
 from app.agent.mcp import MCPAgent
-from app.agent.react import ReactAgent
-from app.agent.report import ReportAgent
+from app.agent.react import ReActAgent
+from app.agent.report import ReportAnalysisAgent
 from app.agent.tara import TaraAgent
 from app.agent.testcase import TestCaseAgent
 from app.agent.toolcall import ToolCallAgent
@@ -20,14 +21,14 @@ from app.agent.toolcall import ToolCallAgent
 __all__ = [
     "BaseAgent", 
     "BrowserAgent",
-    "CollaborationAgent", 
+    # "CollaborationAgent", 
     "DataAnalysisAgent", 
-    "InterfaceAgent", 
+    "AgentInterface", 
     "LLM",
     "MCPAgent", 
     "Memory", 
-    "ReactAgent", 
-    "ReportAgent", 
+    "ReActAgent", 
+    "ReportAnalysisAgent", 
     "TaraAgent", 
     "TestCaseAgent",
     "ToolCallAgent", 

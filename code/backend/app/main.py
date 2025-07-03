@@ -92,7 +92,7 @@ if settings.ENABLE_PROMETHEUS:
 app.include_router(api_router, prefix="/api/v1")
 
 # 健康检查端点
-@app.get("/health", tags=["健康检查"])
+@app.get("/api/v1/health", tags=["健康检查"])
 async def health_check():
     """
     系统健康检查端点

@@ -198,14 +198,148 @@ class MCPClients(ToolCollection):
                         for k, v in self.tool_map.items()
                         if v.server_id != server_id
                     }
+
+                    # 更新工具元组
                     self.tools = tuple(self.tool_map.values())
-                    logger.info(f"已断开与MCP服务器{server_id}的连接")
+
+                    logger.info(f"已断开与MCP服务器 {server_id} 的连接")
                 except Exception as e:
-                    logger.error(f"断开与服务器{server_id}的连接时出错: {e}")
+                    logger.error(f"断开与MCP服务器 {server_id} 的连接失败: {str(e)}")
         else:
-            # 按确定的顺序断开所有服务器
-            for sid in sorted(list(self.sessions.keys())):
-                await self.disconnect(sid)
-            self.tool_map = {}
+            # 断开所有连接
+            for srv_id in list(self.sessions.keys()):
+                try:
+                    await self.disconnect(srv_id)
+                except Exception as e:
+                    logger.error(f"断开与MCP服务器 {srv_id} 的连接失败: {str(e)}")
+
+            # 确保所有引用都被清理
+            self.sessions.clear()
+            self.exit_stacks.clear()
+            self.tool_map.clear()
             self.tools = tuple()
-            logger.info("已断开与所有MCP服务器的连接")
+
+
+class MCPTool(BaseTool):
+    """MCP 工具包装器，提供与MCP服务器交互的能力"""
+    
+    name: str = "mcp"
+    description: str = "与MCP服务器交互，连接和断开连接，以及调用远程工具"
+    parameters: dict = {
+        "type": "object",
+        "properties": {
+            "operation": {
+                "type": "string",
+                "enum": ["connect_sse", "connect_stdio", "disconnect", "list_tools", "call_tool"],
+                "description": "要执行的MCP操作"
+            },
+            "server_url": {
+                "type": "string",
+                "description": "MCP服务器URL，用于SSE连接"
+            },
+            "server_id": {
+                "type": "string",
+                "description": "MCP服务器标识符，用于在使用多个服务器时区分它们"
+            },
+            "command": {
+                "type": "string",
+                "description": "要执行的命令，用于stdio连接"
+            },
+            "args": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "description": "命令参数，用于stdio连接"
+            },
+            "tool_name": {
+                "type": "string",
+                "description": "要调用的远程工具名称"
+            },
+            "tool_args": {
+                "type": "object",
+                "description": "传递给远程工具的参数"
+            }
+        },
+        "required": ["operation"]
+    }
+    
+    # 单例MCP客户端管理器
+    _clients = MCPClients()
+    
+    async def execute(
+        self,
+        operation: str,
+        server_url: Optional[str] = None,
+        server_id: Optional[str] = None,
+        command: Optional[str] = None,
+        args: Optional[List[str]] = None,
+        tool_name: Optional[str] = None,
+        tool_args: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> ToolResult:
+        """执行MCP相关操作
+        
+        Args:
+            operation: 要执行的操作
+            server_url: 服务器URL (对于SSE连接)
+            server_id: 服务器标识符
+            command: 要执行的命令 (对于stdio连接)
+            args: 命令参数
+            tool_name: 要调用的工具名称
+            tool_args: 工具参数
+            
+        Returns:
+            ToolResult: 操作结果
+        """
+        try:
+            if operation == "connect_sse":
+                if not server_url:
+                    return ToolResult(error="连接SSE需要server_url")
+                
+                await self._clients.connect_sse(server_url, server_id or "")
+                return ToolResult(output=f"已连接到MCP服务器 {server_url}")
+                
+            elif operation == "connect_stdio":
+                if not command:
+                    return ToolResult(error="连接stdio需要command")
+                    
+                await self._clients.connect_stdio(command, args or [], server_id or "")
+                return ToolResult(output=f"已连接到MCP命令 {command}")
+                
+            elif operation == "disconnect":
+                await self._clients.disconnect(server_id or "")
+                return ToolResult(output=f"已断开与MCP服务器 {server_id or '所有'} 的连接")
+                
+            elif operation == "list_tools":
+                result = await self._clients.list_tools()
+                tools_info = [{
+                    "name": tool.name,
+                    "description": tool.description
+                } for tool in result.tools]
+                
+                return ToolResult(output=tools_info)
+                
+            elif operation == "call_tool":
+                if not tool_name:
+                    return ToolResult(error="调用工具需要tool_name")
+                
+                # 查找工具
+                tool = self._clients.get_tool(tool_name)
+                if not tool:
+                    return ToolResult(error=f"找不到工具: {tool_name}")
+                
+                # 调用工具
+                return await tool.execute(**(tool_args or {}))
+            
+            else:
+                return ToolResult(error=f"未知操作: {operation}")
+                
+        except Exception as e:
+            logger.error(f"执行MCP操作失败: {str(e)}")
+            return ToolResult(error=f"执行MCP操作失败: {str(e)}")
+    
+    @classmethod
+    def get_clients(cls) -> MCPClients:
+        """获取MCP客户端管理器单例"""
+        return cls._clients

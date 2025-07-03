@@ -17,6 +17,9 @@ SQLALCHEMY_DATABASE_URL = str(settings.DATABASE_URL).replace(
     "postgresql://", "postgresql+asyncpg://"
 )
 
+# 同步数据库URL
+SQLALCHEMY_SYNC_DATABASE_URL = str(settings.DATABASE_URL)
+
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     echo=settings.DEBUG,
@@ -29,8 +32,20 @@ AsyncSessionLocal = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False, autocommit=False, autoflush=False
 )
 
+# 导出会话工厂
+async_session = AsyncSessionLocal
+
 # 创建基类
 Base = declarative_base()
+
+def get_db_url() -> str:
+    """
+    获取同步数据库URL
+    
+    Returns:
+        str: 同步数据库URL
+    """
+    return SQLALCHEMY_SYNC_DATABASE_URL
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """

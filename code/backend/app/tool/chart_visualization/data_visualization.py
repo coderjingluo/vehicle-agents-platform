@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from app.core.config import config
+from app.core.config import settings as config
 from app.core.logging import logger
 from app.tool.base import BaseTool, ToolResult
 
@@ -67,11 +67,11 @@ class DataVisualizationTool(BaseTool):
             if os.path.exists(item[path_str]):
                 res.append(item[path_str])
             elif os.path.exists(
-                os.path.join(f"{directory or config.workspace_dir}", item[path_str])
+                os.path.join(f"{directory or config.WORKSPACE_DIR}", item[path_str])
             ):
                 res.append(
                     os.path.join(
-                        f"{directory or config.workspace_dir}", item[path_str]
+                        f"{directory or config.WORKSPACE_DIR}", item[path_str]
                     )
                 )
             else:
@@ -166,7 +166,7 @@ class DataVisualizationTool(BaseTool):
         try:
             # 获取图表路径
             chart_file_path = self._get_file_path(
-                json_info, "chartPath", os.path.join(config.workspace_dir, "visualization")
+                json_info, "chartPath", os.path.join(config.WORKSPACE_DIR, "visualization")
             )
             
             # 处理每个图表
@@ -237,7 +237,7 @@ class DataVisualizationTool(BaseTool):
         """模拟图表生成（实际实现中应替换为真实的图表生成）"""
         try:
             # 创建可视化目录
-            vis_dir = os.path.join(config.workspace_dir, "visualization")
+            vis_dir = os.path.join(config.WORKSPACE_DIR, "visualization")
             os.makedirs(vis_dir, exist_ok=True)
             
             # 生成图表文件路径
@@ -267,7 +267,7 @@ class DataVisualizationTool(BaseTool):
         """模拟添加洞察（实际实现中应替换为真实的洞察添加）"""
         try:
             # 创建可视化目录
-            vis_dir = os.path.join(config.workspace_dir, "visualization")
+            vis_dir = os.path.join(config.WORKSPACE_DIR, "visualization")
             os.makedirs(vis_dir, exist_ok=True)
             
             # 图表文件路径

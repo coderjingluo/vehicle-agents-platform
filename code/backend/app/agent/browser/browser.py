@@ -8,9 +8,9 @@ from typing import Dict, List, Optional, Any
 from pydantic import Field, model_validator
 
 from app.agent.toolcall import ToolCallAgent, ToolCollection, AgentState
-from app.agent.browser import BrowserContextHelper
 from app.core.logging import logger
-from app.tool import BrowserUseTool, WebSearchTool, TerminateTool
+# 移除直接导入工具，避免循环导入
+# from app.tool import BrowserUseTool, WebSearchTool, TerminateTool
 
 
 # 系统提示模板
@@ -47,13 +47,7 @@ class BrowserAgent(ToolCallAgent):
     next_step_prompt: str = BROWSER_NEXT_STEP_PROMPT
     
     # 工具集合
-    available_tools: ToolCollection = Field(
-        default_factory=lambda: ToolCollection(
-            BrowserUseTool(),
-            WebSearchTool(),
-            TerminateTool()
-        )
-    )
+    available_tools: ToolCollection = None
     
     # 特殊工具名称
     special_tool_names: List[str] = Field(default_factory=lambda: ["terminate"])
@@ -62,7 +56,7 @@ class BrowserAgent(ToolCallAgent):
     max_observe: int = 10000
     
     # 浏览器上下文辅助类
-    browser_context_helper: Optional[BrowserContextHelper] = None
+    browser_context_helper: Optional[Any] = None
     
     # 当前的浏览器状态
     _current_url: Optional[str] = None
@@ -71,7 +65,21 @@ class BrowserAgent(ToolCallAgent):
     
     @model_validator(mode="after")
     def initialize_helper(self) -> "BrowserAgent":
-        """初始化浏览器上下文辅助类"""
+        """初始化浏览器上下文辅助类和工具"""
+        # 延迟导入以避免循环依赖
+        from app.agent.browser.browser_context_helper import BrowserContextHelper
+        from app.tool.browser.browser_use import BrowserUseTool
+        from app.tool.web_search import WebSearchTool
+        from app.tool.terminate import TerminateTool
+        
+        # 初始化工具集合
+        self.available_tools = ToolCollection(
+            BrowserUseTool(),
+            WebSearchTool(),
+            TerminateTool()
+        )
+        
+        # 初始化浏览器上下文辅助类
         self.browser_context_helper = BrowserContextHelper(self)
         return self
     

@@ -11,10 +11,11 @@ from app.api.api_v1.endpoints import (
     users,
     tasks,
     agents,
-    flows,
+    flow,
     tools,
     knowledge,
     mcp,
+    models,
 )
 
 # 创建主API路由器
@@ -25,7 +26,8 @@ api_router.include_router(auth.router, prefix="/auth", tags=["认证"])
 api_router.include_router(users.router, prefix="/users", tags=["用户"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["任务"])
 api_router.include_router(agents.router, prefix="/agents", tags=["智能体"])
-api_router.include_router(flows.router, prefix="/flows", tags=["执行流"])
+api_router.include_router(flow.router, prefix="/flow", tags=["执行流"])
 api_router.include_router(tools.router, prefix="/tools", tags=["工具"])
 api_router.include_router(knowledge.router, prefix="/knowledge", tags=["知识库"])
 api_router.include_router(mcp.router, prefix="/mcp", tags=["MCP"])
+api_router.include_router(models.router, prefix="/models", tags=["模型"])

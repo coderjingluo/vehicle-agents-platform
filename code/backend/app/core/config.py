@@ -8,7 +8,6 @@ import os
 import secrets
 from typing import List, Optional, Union, Dict, Any
 from pydantic import (
-    BaseSettings, 
     PostgresDsn, 
     RedisDsn, 
     HttpUrl, 
@@ -41,8 +40,10 @@ class Settings(BaseSettings):
     
     # JWT配置
     SECRET_KEY: str = secrets.token_urlsafe(32)
+    REFRESH_TOKEN_SECRET_KEY: str = secrets.token_urlsafe(32)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30  # 30 days
     
     # CORS配置
     ALLOWED_ORIGINS: List[str] = Field(default_factory=list)
@@ -82,6 +83,7 @@ class Settings(BaseSettings):
     # 文件上传配置
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
     UPLOAD_DIR: str = "./uploads"
+    WORKSPACE_DIR: str = "./workspace"
     
     # WebSocket配置
     WEBSOCKET_HEARTBEAT_INTERVAL: int = 30
@@ -103,6 +105,7 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
+    DEFAULT_KB_NAME: str = "default_knowledge_base"
     
     # MCP工具配置
     MCP_TIMEOUT: int = 30

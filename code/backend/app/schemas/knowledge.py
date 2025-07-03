@@ -28,6 +28,11 @@ class KnowledgeBaseResponse(BaseModel):
         orm_mode = True
 
 
+class KnowledgeBaseListResponse(BaseModel):
+    """知识库列表响应模式"""
+    knowledge_bases: List[KnowledgeBaseResponse]
+
+
 class DocumentResponse(BaseModel):
     """文档响应模式"""
     id: str

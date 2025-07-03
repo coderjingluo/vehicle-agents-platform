@@ -21,7 +21,7 @@ from .search import (
 )
 
 
-class WebSearch(BaseTool):
+class WebSearchTool(BaseTool):
     """网络搜索工具"""
     
     name: str = "web_search"

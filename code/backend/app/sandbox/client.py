@@ -247,3 +247,5 @@ class SandboxClient:
         """析构函数，确保资源被释放"""
         if self._initialized and self._sandbox:
             logger.warning("沙箱客户端被销毁但未清理，这可能导致资源泄漏") 
+            
+SANDBOX_CLIENT = SandboxClient()

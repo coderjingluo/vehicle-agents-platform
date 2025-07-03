@@ -243,7 +243,7 @@ async def upload_document(
                 "file_size": document.file_size,
                 "uploaded_at": document.uploaded_at,
                 "status": document.status,
-                "metadata": document.metadata
+                "metadata": document.doc_metadata
             },
             "message": "文档上传成功，正在处理"
         }

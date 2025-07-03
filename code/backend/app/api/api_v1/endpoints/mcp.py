@@ -14,8 +14,30 @@ from app.core.security import get_current_active_user
 from app.db.session import get_db
 from app.models.user import User
 from app.models.tool import MCPConnection, MCPTool
+from app.tool.tool_collection import get_global_tool_collection, register_mcp_tool, register_mcp_tool_sse
+from pydantic import BaseModel, Field
 
 router = APIRouter()
+
+
+class RegisterMCPToolRequest(BaseModel):
+    """注册MCP工具请求"""
+    command: str = Field(..., description="MCP服务器命令")
+    args: List[str] = Field(default_factory=list, description="命令参数")
+    server_id: str = Field("", description="服务器标识符")
+
+
+class RegisterMCPToolSSERequest(BaseModel):
+    """通过SSE注册MCP工具请求"""
+    server_url: str = Field(..., description="MCP服务器URL")
+    server_id: str = Field("", description="服务器标识符")
+
+
+class MCPToolResponse(BaseModel):
+    """MCP工具响应"""
+    name: str = Field(..., description="工具名称")
+    description: str = Field(..., description="工具描述")
+    parameters: Dict[str, Any] = Field(default_factory=dict, description="工具参数")
 
 
 @router.post(
@@ -456,3 +478,147 @@ async def get_tool_execution_history(
             }
         }
     } 
+
+
+@router.post("/mcp/tools", status_code=status.HTTP_201_CREATED)
+async def register_mcp_tool_endpoint(request: RegisterMCPToolRequest):
+    """
+    注册MCP工具
+    """
+    try:
+        success = await register_mcp_tool(
+            command=request.command,
+            args=request.args,
+            server_id=request.server_id
+        )
+        
+        if success:
+            # 获取注册的工具列表
+            tool_collection = get_global_tool_collection()
+            tools = tool_collection.get_tools()
+            
+            return {
+                "success": True,
+                "message": "MCP工具注册成功",
+                "tools": [
+                    {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.parameters
+                    }
+                    for tool in tools if hasattr(tool, "server_id") and tool.server_id == request.server_id
+                ]
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="MCP工具注册失败"
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"MCP工具注册失败: {str(e)}"
+        )
+
+
+@router.post("/mcp/tools/sse", status_code=status.HTTP_201_CREATED)
+async def register_mcp_tool_sse_endpoint(request: RegisterMCPToolSSERequest):
+    """
+    通过SSE注册MCP工具
+    """
+    try:
+        success = await register_mcp_tool_sse(
+            server_url=request.server_url,
+            server_id=request.server_id
+        )
+        
+        if success:
+            # 获取注册的工具列表
+            tool_collection = get_global_tool_collection()
+            tools = tool_collection.get_tools()
+            
+            return {
+                "success": True,
+                "message": "MCP工具通过SSE注册成功",
+                "tools": [
+                    {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.parameters
+                    }
+                    for tool in tools if hasattr(tool, "server_id") and tool.server_id == request.server_id
+                ]
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="MCP工具通过SSE注册失败"
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"MCP工具通过SSE注册失败: {str(e)}"
+        )
+
+
+@router.get("/mcp/tools", response_model=List[MCPToolResponse])
+async def list_mcp_tools():
+    """
+    列出所有MCP工具
+    """
+    try:
+        tool_collection = get_global_tool_collection()
+        tools = tool_collection.get_tools()
+        
+        # 过滤出MCP工具
+        mcp_tools = [
+            {
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": tool.parameters
+            }
+            for tool in tools if hasattr(tool, "server_id") and tool.server_id
+        ]
+        
+        return mcp_tools
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取MCP工具列表失败: {str(e)}"
+        )
+
+
+@router.delete("/mcp/tools/{server_id}", status_code=status.HTTP_200_OK)
+async def disconnect_mcp_server(server_id: str):
+    """
+    断开与MCP服务器的连接
+    """
+    try:
+        tool_collection = get_global_tool_collection()
+        
+        if hasattr(tool_collection, "mcp_clients"):
+            await tool_collection.mcp_clients.disconnect(server_id)
+            
+            # 移除相关工具
+            tools_to_remove = []
+            for tool_name, tool in tool_collection.tool_map.items():
+                if hasattr(tool, "server_id") and tool.server_id == server_id:
+                    tools_to_remove.append(tool_name)
+            
+            for tool_name in tools_to_remove:
+                tool_collection.remove_tool(tool_name)
+            
+            return {
+                "success": True,
+                "message": f"已断开与MCP服务器 {server_id} 的连接"
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="MCP客户端未初始化"
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"断开MCP服务器连接失败: {str(e)}"
+        ) 

@@ -16,10 +16,12 @@ from mcp.server.fastmcp import FastMCP
 
 from app.core.logging import logger
 from app.tool.base import BaseTool
-from app.tool.bash import Bash
-from app.tool.file_operators import FileOperator
-from app.tool.terminate import Terminate
+from app.tool.bash import BashTool as Bash
+from app.tool.file_operators import FileOperatorTool
+from app.tool.terminate import TerminateTool
 
+# 全局MCP服务器实例
+_mcp_server_instance = None
 
 class MCPServer:
     """MCP Server implementation with tool registration and management."""
@@ -30,8 +32,8 @@ class MCPServer:
 
         # 初始化标准工具
         self.tools["bash"] = Bash()
-        self.tools["file"] = FileOperator()
-        self.tools["terminate"] = Terminate()
+        self.tools["file"] = FileOperatorTool()
+        self.tools["terminate"] = TerminateTool()
 
     def register_tool(self, tool: BaseTool, method_name: Optional[str] = None) -> None:
         """Register a tool with parameter validation and documentation."""
@@ -154,6 +156,42 @@ class MCPServer:
         # 启动服务器
         logger.info(f"Starting KunlunSec server ({transport} mode)")
         self.server.run(transport=transport)
+
+
+async def init_mcp_server():
+    """
+    初始化MCP服务器
+    
+    此函数将在应用启动时调用，用于初始化MCP服务器和工具。
+    """
+    global _mcp_server_instance
+    
+    logger.info("正在初始化MCP服务器...")
+    
+    # 创建MCP服务器实例
+    if _mcp_server_instance is None:
+        _mcp_server_instance = MCPServer(name="kunlunsec")
+        
+        # 在这里可以注册其他工具
+        # 例如: _mcp_server_instance.register_tool(CustomTool())
+        
+    logger.info("MCP服务器初始化完成")
+    return _mcp_server_instance
+
+
+async def shutdown_mcp_server():
+    """
+    关闭MCP服务器
+    
+    此函数将在应用关闭时调用，用于清理MCP服务器资源。
+    """
+    global _mcp_server_instance
+    
+    if _mcp_server_instance:
+        logger.info("正在关闭MCP服务器...")
+        await _mcp_server_instance.cleanup()
+        _mcp_server_instance = None
+        logger.info("MCP服务器已关闭")
 
 
 def parse_args() -> argparse.Namespace:

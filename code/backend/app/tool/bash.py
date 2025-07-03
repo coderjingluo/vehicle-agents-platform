@@ -7,20 +7,20 @@ from app.sandbox.client import SANDBOX_CLIENT
 from .base import BaseTool, ToolResult
 
 
-_BASH_DESCRIPTION = """执行Bash命令并返回结果。
+_BashTool_DESCRIPTION = """执行BashTool命令并返回结果。
 * 长时间运行的命令: 对于可能无限期运行的命令，应在后台运行，并将输出重定向到文件，例如 command = `python3 app.py > server.log 2>&1 &`。
-* 交互式: 如果bash命令返回退出代码`-1`，这意味着进程尚未完成。助手必须发送第二个调用到终端，command为空（这将检索任何额外的日志），或者可以发送额外的文本（将command设置为文本）到运行进程的STDIN，或者可以发送command=`ctrl+c`来中断进程。
+* 交互式: 如果BashTool命令返回退出代码`-1`，这意味着进程尚未完成。助手必须发送第二个调用到终端，command为空（这将检索任何额外的日志），或者可以发送额外的文本（将command设置为文本）到运行进程的STDIN，或者可以发送command=`ctrl+c`来中断进程。
 * 超时: 如果命令执行结果显示"命令超时。向进程发送SIGINT"，助手应尝试在后台运行该命令。
 """
 
 
-class _BashSession:
-    """Bash会话类，管理单个bash shell会话"""
+class _BashToolSession:
+    """BashTool会话类，管理单个BashTool shell会话"""
     
     _started: bool
     _process: asyncio.subprocess.Process
     
-    command: str = "/bin/bash"
+    command: str = "/bin/BashTool"
     _output_delay: float = 0.2  # 秒
     _timeout: float = 120.0  # 秒
     _sentinel: str = "<<exit>>"
@@ -30,7 +30,7 @@ class _BashSession:
         self._timed_out = False
     
     async def start(self):
-        """启动bash会话"""
+        """启动BashTool会话"""
         if self._started:
             return
             
@@ -47,7 +47,7 @@ class _BashSession:
         self._started = True
     
     def stop(self):
-        """终止bash会话"""
+        """终止BashTool会话"""
         if not self._started:
             raise ValueError("会话尚未启动")
         if self._process.returncode is not None:
@@ -55,17 +55,17 @@ class _BashSession:
         self._process.terminate()
     
     async def run(self, command: str):
-        """在bash会话中执行命令"""
+        """在BashTool会话中执行命令"""
         if not self._started:
             raise ValueError("会话尚未启动")
         if self._process.returncode is not None:
             return ToolResult(
-                error=f"bash已退出，返回码为 {self._process.returncode}",
+                error=f"BashTool已退出，返回码为 {self._process.returncode}",
                 system="工具必须重启"
             )
         if self._timed_out:
             raise ValueError(
-                f"超时: bash在 {self._timeout} 秒内未返回，必须重启"
+                f"超时: BashTool在 {self._timeout} 秒内未返回，必须重启"
             )
             
         # 我们知道这些不是None，因为我们使用PIPE创建了进程
@@ -94,7 +94,7 @@ class _BashSession:
         except asyncio.TimeoutError:
             self._timed_out = True
             raise ValueError(
-                f"超时: bash在 {self._timeout} 秒内未返回，必须重启"
+                f"超时: Bash在 {self._timeout} 秒内未返回，必须重启"
             )
             
         if output.endswith("\n"):
@@ -111,17 +111,17 @@ class _BashSession:
         return ToolResult(output=output, error=error)
 
 
-class Bash(BaseTool):
-    """Bash命令执行工具"""
+class BashTool(BaseTool):
+    """BashTool命令执行工具"""
     
-    name: str = "bash"
-    description: str = _BASH_DESCRIPTION
+    name: str = "BashTool"
+    description: str = _BashTool_DESCRIPTION
     parameters: dict = {
         "type": "object",
         "properties": {
             "command": {
                 "type": "string",
-                "description": "要执行的Bash命令。可以为空以查看前一个命令的额外日志。可以是`ctrl+c`来中断当前运行的进程。"
+                "description": "要执行的bash命令。可以为空以查看前一个命令的额外日志。可以是`ctrl+c`来中断当前运行的进程。"
             },
             "restart": {
                 "type": "boolean",
@@ -131,20 +131,20 @@ class Bash(BaseTool):
         "required": ["command"]
     }
     
-    _session: Optional[_BashSession] = None
+    _session: Optional[_BashToolSession] = None
     
     async def execute(self, command: str = None, restart: bool = False, **kwargs) -> ToolResult:
-        """执行Bash命令"""
+        """执行BashTool命令"""
         if restart:
             if self._session:
                 self._session.stop()
-            self._session = _BashSession()
+            self._session = _BashToolSession()
             await self._session.start()
             
             return ToolResult(system="工具已重启")
             
         if self._session is None:
-            self._session = _BashSession()
+            self._session = _BashToolSession()
             await self._session.start()
             
         if command is not None:

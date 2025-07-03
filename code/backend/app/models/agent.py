@@ -34,6 +34,37 @@ class AgentStatus(str, enum.Enum):
     FINISHED = "finished"   # 执行完成
     ERROR = "error"         # 错误状态
 
+class Agent(Base):
+    """智能体模型"""
+    
+    __tablename__ = "agents"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    
+    # 智能体类型
+    agent_type = Column(Enum(AgentType), nullable=False)
+    
+    # 配置
+    config = Column(JSON, default={})
+    
+    # 关联模型
+    model_id = Column(UUID(as_uuid=True), ForeignKey("model_configs.id"), nullable=True)
+    model = relationship("ModelConfig", backref="agents")
+    
+    # 权限和状态
+    is_active = Column(Boolean, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    creator = relationship("User", backref="created_agents")
+    
+    # 时间戳
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<Agent {self.name} ({self.agent_type})>"
+
 class AgentExecution(Base):
     """智能体执行记录模型"""
     

@@ -67,7 +67,7 @@ class KnowledgeDocument(Base):
     url = Column(String(512), nullable=True)  # 如果是URL类型
     
     # 文档元数据
-    metadata = Column(JSON, default={})
+    doc_metadata = Column(JSON, default={})
     tags = Column(ARRAY(String), default=[])
     
     # 向量数据库ID
@@ -100,7 +100,7 @@ class KnowledgeChunk(Base):
     
     # 块内容和元数据
     content = Column(Text, nullable=False)
-    metadata = Column(JSON, default={})
+    doc_metadata = Column(JSON, default={})
     
     # 向量数据库ID和位置信息
     vector_id = Column(String(255), nullable=True)  # Chroma中的ID
@@ -126,7 +126,7 @@ class Document(Base):
     last_updated = Column(DateTime, nullable=True)
     status = Column(String(10), default=DocumentStatus.PENDING.value)
     error_message = Column(Text, nullable=True)
-    metadata = Column(JSON, default={})
+    doc_metadata = Column(JSON, default={})
     chunk_count = Column(Integer, default=0)
 
     # Relationships
@@ -160,7 +160,7 @@ class DocumentChunk(Base):
     kb_id = Column(String(36), ForeignKey("knowledge_bases.id"), nullable=False)
     content = Column(Text, nullable=False)
     chunk_index = Column(Integer, nullable=False)
-    metadata = Column(JSON, default={})
+    doc_metadata = Column(JSON, default={})
     
     # 注意: 向量嵌入通常存储在向量数据库中，而非SQL数据库
     # embedding 字段不存储在此

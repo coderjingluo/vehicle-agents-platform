@@ -4,7 +4,7 @@ KunlunSec AI Platform - 图表可视化Python执行工具
 提供用于数据分析和报告生成的Python代码执行功能。
 """
 
-from app.core.config import config
+from app.core.config import settings
 from app.tool.python_execute import PythonExecuteTool
 
 
@@ -31,7 +31,7 @@ class NormalPythonExecuteTool(PythonExecuteTool):
 3. 将任何报告/处理文件/每个分析结果保存在工作空间目录中：{directory}
 4. 数据报告需要内容丰富，包括您的整体分析过程和相应的数据可视化。
 5. 您可以逐步调用此工具，从摘要到深入进行数据分析，同时保存数据报告""".format(
-                    directory=config.workspace_dir
+                    directory=settings.UPLOAD_DIR
                 ),
             },
         },

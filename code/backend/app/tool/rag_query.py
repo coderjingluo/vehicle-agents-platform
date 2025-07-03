@@ -10,7 +10,7 @@ from app.knowledge.semantic_search import SemanticSearchEngine, CrossEncoderRera
 from app.tool.base import BaseTool, ToolResult
 
 
-class RagQueryTool(BaseTool):
+class RAGQueryTool(BaseTool):
     """RAG查询工具"""
     
     name: str = "rag_query"
@@ -44,6 +44,40 @@ class RagQueryTool(BaseTool):
         },
         "required": ["kb_name", "query"]
     }
+    
+    async def execute(self, kb_name: Optional[str] = None, query: Optional[str] = None, 
+                     query_text: Optional[str] = None, top_k: int = 5, 
+                     filters: Optional[Dict[str, str]] = None,
+                     rerank: bool = False, **kwargs) -> ToolResult:
+        """执行RAG查询
+        
+        Args:
+            kb_name: 知识库名称，如果未提供则使用默认知识库
+            query: 查询文本
+            query_text: 查询文本的别名，用于兼容性
+            top_k: 返回的最大结果数量
+            filters: 过滤条件
+            rerank: 是否重排序结果
+            
+        Returns:
+            ToolResult: 查询结果
+        """
+        # 参数处理和兼容性
+        actual_query = query or query_text or kwargs.get('text') or ""
+        actual_kb_name = kb_name or settings.DEFAULT_KB_NAME
+        
+        if not actual_query:
+            return ToolResult(error="未提供查询文本")
+        
+        # 调用实际的执行方法
+        return await self._execute(
+            kb_name=actual_kb_name,
+            query=actual_query,
+            top_k=top_k,
+            filters=filters,
+            rerank=rerank,
+            **kwargs
+        )
     
     async def _execute(self, kb_name: str, query: str, top_k: int = 5, 
                      filters: Optional[Dict[str, str]] = None,

@@ -7,14 +7,10 @@ KunlunSec AI Platform - 浏览器上下文辅助模块
 from typing import TYPE_CHECKING, Optional, Dict, Any
 
 from app.core.logging import logger
-from app.agent.browser.browser import BrowserAgent
-from app.agent.browser.browser_context_helper import BrowserContextHelper
 
 # 避免循环导入
 if TYPE_CHECKING:
     from app.agent.base import BaseAgent
-
-__all__ = ["BrowserContextHelper", "BrowserAgent"]
 
 class BrowserContextHelper:
     """浏览器上下文辅助类

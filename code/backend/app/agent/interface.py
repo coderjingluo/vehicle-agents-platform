@@ -577,3 +577,123 @@ class AdaptiveCollaboration:
             if agent_type in name.lower() and agent not in self.active_agents.values():
                 return agent
         return None 
+
+class AgentFactory:
+    """智能体工厂，负责创建和管理不同类型的智能体"""
+    
+    def __init__(self):
+        """初始化智能体工厂"""
+        self.agents_cache = {}  # 缓存已创建的智能体
+        
+    async def get_agent(self, agent_type: str) -> BaseAgent:
+        """
+        获取指定类型的智能体
+        
+        Args:
+            agent_type: 智能体类型，例如 'tara', 'testcase', 'automation', 'report', 'toolcall'
+            
+        Returns:
+            对应类型的智能体实例
+        """
+        # 规范化智能体类型
+        agent_type = agent_type.lower()
+        
+        # 检查缓存
+        if agent_type in self.agents_cache:
+            return self.agents_cache[agent_type]
+        
+        # 根据类型创建智能体
+        agent = None
+        if agent_type == "tara":
+            from app.agent.tara import TaraAgent
+            agent = await TaraAgent.create()
+        elif agent_type == "testcase":
+            from app.agent.testcase import TestCaseAgent
+            agent = await TestCaseAgent.create()
+        elif agent_type == "automation" or agent_type == "automationtest":
+            from app.agent.automation import AutomationTestAgent
+            agent = await AutomationTestAgent.create()
+        elif agent_type == "report" or agent_type == "reportanalysis":
+            from app.agent.report import ReportAnalysisAgent
+            agent = await ReportAnalysisAgent.create()
+        elif agent_type == "toolcall":
+            from app.agent.toolcall import ToolCallAgent
+            agent = await ToolCallAgent.create()
+        elif agent_type == "react":
+            from app.agent.react import ReactAgent
+            agent = await ReactAgent.create()
+        elif agent_type == "mcp":
+            from app.agent.mcp import MCPAgent
+            agent = await MCPAgent.create()
+        elif agent_type == "browser":
+            from app.agent.browser.browser import BrowserAgent
+            agent = await BrowserAgent.create()
+        elif agent_type == "collaboration":
+            from app.agent.collaboration import CollaborationAgent
+            agent = await CollaborationAgent.create()
+        elif agent_type == "data":
+            from app.agent.data import DataAnalysisAgent
+            agent = await DataAnalysisAgent.create()
+        else:
+            # 默认使用ToolCallAgent
+            from app.agent.toolcall import ToolCallAgent
+            agent = await ToolCallAgent.create()
+            
+        # 缓存智能体
+        self.agents_cache[agent_type] = agent
+        
+        return agent
+    
+    async def create_agent(self, agent_type: str, **kwargs) -> BaseAgent:
+        """
+        创建指定类型的智能体（不使用缓存）
+        
+        Args:
+            agent_type: 智能体类型
+            **kwargs: 智能体初始化参数
+            
+        Returns:
+            新创建的智能体实例
+        """
+        # 规范化智能体类型
+        agent_type = agent_type.lower()
+        
+        # 根据类型创建智能体
+        if agent_type == "tara":
+            from app.agent.tara import TaraAgent
+            return await TaraAgent.create(**kwargs)
+        elif agent_type == "testcase":
+            from app.agent.testcase import TestCaseAgent
+            return await TestCaseAgent.create(**kwargs)
+        elif agent_type == "automation" or agent_type == "automationtest":
+            from app.agent.automation import AutomationTestAgent
+            return await AutomationTestAgent.create(**kwargs)
+        elif agent_type == "report" or agent_type == "reportanalysis":
+            from app.agent.report import ReportAnalysisAgent
+            return await ReportAnalysisAgent.create(**kwargs)
+        elif agent_type == "toolcall":
+            from app.agent.toolcall import ToolCallAgent
+            return await ToolCallAgent.create(**kwargs)
+        elif agent_type == "react":
+            from app.agent.react import ReactAgent
+            return await ReactAgent.create(**kwargs)
+        elif agent_type == "mcp":
+            from app.agent.mcp import MCPAgent
+            return await MCPAgent.create(**kwargs)
+        elif agent_type == "browser":
+            from app.agent.browser.browser import BrowserAgent
+            return await BrowserAgent.create(**kwargs)
+        elif agent_type == "collaboration":
+            from app.agent.collaboration import CollaborationAgent
+            return await CollaborationAgent.create(**kwargs)
+        elif agent_type == "data":
+            from app.agent.data import DataAnalysisAgent
+            return await DataAnalysisAgent.create(**kwargs)
+        else:
+            # 默认使用ToolCallAgent
+            from app.agent.toolcall import ToolCallAgent
+            return await ToolCallAgent.create(**kwargs)
+    
+    def clear_cache(self):
+        """清除智能体缓存"""
+        self.agents_cache = {} 

@@ -27,6 +27,7 @@ class User(Base):
     # 用户角色和权限
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
+    role = Column(String(255), default="user")
     
     # 用户偏好设置（JSON格式存储）
     preferences = Column(Text, default="{}")
@@ -35,6 +36,12 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
+    
+    def update_last_login(self):
+        """
+        更新用户最后登录时间
+        """
+        self.last_login = datetime.utcnow()
     
     def __repr__(self):
         return f"<User {self.username}>" 

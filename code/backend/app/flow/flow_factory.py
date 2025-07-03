@@ -15,6 +15,7 @@ class FlowType(str, Enum):
     TESTCASE = "testcase"
     AUTOMATION = "automation"
     REPORT = "report"
+    DYNAMIC = "dynamic"
 
 
 class FlowFactory:
@@ -35,5 +36,9 @@ class FlowFactory:
             return AutomationTestFlow(flow_id, name or "自动化测试执行", description, agent_factory=self.agent_factory)
         elif flow_type == FlowType.REPORT:
             return ReportGenerationFlow(flow_id, name or "报告生成", description, agent_factory=self.agent_factory)
+        elif flow_type == FlowType.DYNAMIC:
+            # 动态流程使用LangGraph实现，通过FlowManager的create_flow方法创建
+            # 这里返回None，由调用者处理
+            return None
         else:
             raise ValueError(f"Unsupported flow type: {flow_type}") 
