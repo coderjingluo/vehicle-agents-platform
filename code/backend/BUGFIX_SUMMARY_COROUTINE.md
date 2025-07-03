@@ -1,34 +1,49 @@
-# 协程对象处理问题修复总结
+# 工具调用参数处理和协程处理问题修复
 
 ## 问题描述
 
-在工具调用执行过程中，日志显示工具返回的是协程对象而非实际结果：
+在车联网安全平台的工具调用系统中，发现了两个主要问题：
 
-```
-执行成功，结果长度: 54, 结果: <coroutine object BaseTool.__call__ at 0x7f529ac5fae0>
-```
+1. **参数名称不匹配问题**：某些工具调用（如`web_search`和`create_chat_completion`）使用的参数名称与工具实现中期望的参数名称不匹配。例如，LLM可能返回`search_query`参数，但`WebSearchTool.execute()`方法期望的是`query`参数。
 
-这表明在调用异步工具时没有正确地等待协程完成，导致日志中显示的是协程对象本身，而不是执行后的实际结果。
+2. **协程处理问题**：工具调用返回的协程对象没有被正确地等待完成，导致错误：
+   - `WebSearchTool.execute() missing 1 required positional argument: 'query'`
+   - `CreateChatCompletionTool.execute() missing 1 required positional argument: 'messages'`
 
-## 根本原因分析
+## 修复方法
 
-在异步编程中，当调用一个异步函数（使用`async def`定义的函数）时，它不会立即执行并返回结果，而是返回一个协程对象（coroutine object）。要获取实际结果，需要使用`await`关键字等待协程完成。
+### 1. 参数名称映射
 
-在toolcall.py中，虽然代码中有针对异步函数的处理（使用`asyncio.iscoroutinefunction`检查函数是否为异步函数），但缺少了对返回结果是否为协程对象的检查和处理。这导致在某些情况下，工具函数可能返回了协程对象，但代码没有等待它完成就直接将其作为结果使用。
+在`toolcall.py`中添加了参数名称映射机制，将LLM返回的参数名称映射到工具实际期望的参数名称：
 
-## 修复方案
-
-在所有可能处理工具调用结果的地方，添加对协程对象的检查和等待处理：
-
-1. 在`_process_tool_calls`方法中：
 ```python
-# 检查结果是否是协程对象，如果是则等待其完成
-if asyncio.iscoroutine(tool_result):
-    logger.info(f"工具 {function_name} 返回了协程对象，等待其完成...")
-    tool_result = await tool_result
+# 特定工具的参数名称映射
+param_mappings = {
+    "web_search": {
+        "search_query": "query",
+        "engine": "search_engine"
+    },
+    "create_chat_completion": {
+        "prompt": "messages"
+    }
+}
+
+# 应用参数映射
+if function_name in param_mappings and isinstance(function_args, dict):
+    mapping = param_mappings[function_name]
+    for old_name, new_name in mapping.items():
+        if old_name in function_args:
+            mapped_args[new_name] = function_args[old_name]
 ```
 
-2. 在`execute_tool`方法中：
+这个映射机制在两个位置实现：
+- `_process_tool_calls`方法中，处理初始工具调用
+- `execute_tool`方法中，执行具体工具前再次检查参数
+
+### 2. 协程处理增强
+
+在所有可能返回协程对象的地方添加了检查和等待机制：
+
 ```python
 # 检查结果是否是协程对象，如果是则等待其完成
 if asyncio.iscoroutine(result):
@@ -36,26 +51,29 @@ if asyncio.iscoroutine(result):
     result = await result
 ```
 
-3. 在`act`方法中：
+这个检查在以下位置实现：
+- `act`方法中
+- `execute_tool`方法中
+- `_process_tool_calls`方法中
+- `_handle_special_tool`方法中
+
+### 3. 特殊工具处理返回值
+
+修改了`_handle_special_tool`方法，确保它正确返回处理后的结果：
+
 ```python
-# 检查结果是否是协程对象，如果是则等待其完成
-if asyncio.iscoroutine(result):
-    logger.info(f"工具 {name} 返回了协程对象，等待其完成...")
-    result = await result
+async def _handle_special_tool(self, name: str, result: Any, **kwargs):
+    # 处理逻辑...
+    return result  # 确保返回处理后的结果
 ```
 
-4. 在`_handle_special_tool`方法中：
-```python
-# 检查结果是否是协程对象，如果是则等待其完成
-if asyncio.iscoroutine(result):
-    logger.info(f"特殊工具 {name} 返回了协程对象，等待其完成...")
-    result = await result
-```
+## 参考实现
 
-## 修复效果
+这些修复参考了OpenManus项目中的工具调用实现，特别是其参数处理和协程处理机制。OpenManus使用了类似的参数映射和协程等待机制，确保工具调用能够正确执行。
 
-通过这些修改，系统现在能够正确处理工具返回的协程对象，确保在使用结果之前先等待协程完成，从而获取实际的执行结果。这样日志中显示的将是工具执行后的实际结果，而不是协程对象的字符串表示。
+## 测试验证
 
-## 总结
-
-这个问题是典型的异步编程中的常见陷阱。在处理异步函数时，不仅需要考虑函数本身是否是异步的（使用`asyncio.iscoroutinefunction`检查），还需要考虑返回值是否是协程对象（使用`asyncio.iscoroutine`检查）。通过添加对协程对象的检查和等待处理，我们确保了异步工具调用能够正确完成并返回实际结果。 
+修复后，之前出现错误的工具调用现在能够正常工作：
+- `web_search`工具能够正确接收`query`参数
+- `create_chat_completion`工具能够正确接收`messages`参数
+- 所有返回协程对象的工具调用都能被正确等待和处理 

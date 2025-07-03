@@ -699,17 +699,48 @@ class ToolCallAgent(ReActAgent):
                         args = {"text": arguments}  # 回退到使用原始字符串
                 else:
                     args = arguments
+                
+                # 参数名称映射，处理不同的参数命名约定
+                function_args = {}
+                
+                # 特定工具的参数名称映射
+                param_mappings = {
+                    "web_search": {
+                        "search_query": "query",
+                        "engine": "search_engine"
+                    },
+                    "create_chat_completion": {
+                        "prompt": "messages"
+                    }
+                }
+                
+                # 应用参数映射
+                if name in param_mappings and isinstance(args, dict):
+                    mapping = param_mappings[name]
+                    for old_name, new_name in mapping.items():
+                        if old_name in args:
+                            function_args[new_name] = args[old_name]
+                            logger.info(f"参数映射: {old_name} -> {new_name} = {args[old_name]}")
+                
+                # 添加所有其他参数
+                if isinstance(args, dict):
+                    for key, value in args.items():
+                        if key not in function_args:  # 避免覆盖已映射的参数
+                            function_args[key] = value
                     
-                logger.info(f"🔧 执行工具 {name} 参数: {args}")
+                logger.info(f"🔧 执行工具 {name} 参数: {function_args}")
                 
                 # 执行工具调用
                 if isinstance(call, ToolCall):
+                    # 更新参数
+                    if hasattr(call, "function") and hasattr(call.function, "arguments"):
+                        call.function.arguments = json.dumps(function_args)
                     result = await self.execute_tool(call)
                 else:
                     # 创建临时ToolCall对象
                     temp_call = {
                         "id": tool_call_id,
-                        "function": {"name": name, "arguments": arguments}
+                        "function": {"name": name, "arguments": json.dumps(function_args)}
                     }
                     result = await self.execute_tool(temp_call)
                 
@@ -942,8 +973,39 @@ class ToolCallAgent(ReActAgent):
             if not tool:
                 return f"错误: 未知工具 '{function_name}'"
             
+            # 参数名称映射，处理不同的参数命名约定
+            mapped_args = {}
+            
+            # 特定工具的参数名称映射
+            param_mappings = {
+                "web_search": {
+                    "search_query": "query",
+                    "engine": "search_engine"
+                },
+                "create_chat_completion": {
+                    "prompt": "messages"
+                }
+            }
+            
+            # 应用参数映射
+            if function_name in param_mappings and isinstance(function_args, dict):
+                mapping = param_mappings[function_name]
+                for old_name, new_name in mapping.items():
+                    if old_name in function_args:
+                        mapped_args[new_name] = function_args[old_name]
+                        logger.info(f"参数映射: {old_name} -> {new_name} = {function_args[old_name]}")
+            
+            # 添加所有其他参数
+            if isinstance(function_args, dict):
+                for key, value in function_args.items():
+                    if key not in mapped_args:  # 避免覆盖已映射的参数
+                        mapped_args[key] = value
+            
+            # 使用映射后的参数
+            function_args = mapped_args
+            
             # 执行工具
-            logger.info(f"🔧 激活工具: '{function_name}'...")
+            logger.info(f"🔧 激活工具: '{function_name}'，参数: {function_args}")
             
             # 直接调用工具的execute方法，绕过ToolCollection包装器
             try:
@@ -1040,6 +1102,8 @@ class ToolCallAgent(ReActAgent):
         # 处理图像结果
         if hasattr(result, "base64_image") and result.base64_image:
             self._current_base64_image = result.base64_image
+            
+        return result
     
     @staticmethod
     def _should_finish_execution(**kwargs) -> bool:
