@@ -503,11 +503,11 @@ class TaraAgent(ToolCallAgent):
                 await self.browser_context_helper.format_next_step_prompt()
             )
         logger.info(f"taraagent {super().__class__.__name__}")
-        
+
         try:
-            result = await super().think()
-            # 恢复原始提示
-            self.next_step_prompt = original_prompt
+        result = await super().think()
+        # 恢复原始提示
+        self.next_step_prompt = original_prompt
             return result
         except AttributeError as e:
             if "'dict' object has no attribute 'function'" in str(e):
@@ -542,7 +542,7 @@ class TaraAgent(ToolCallAgent):
                     result = await super().think()
                     # 恢复原始提示
                     self.next_step_prompt = original_prompt
-                    return result
+        return result
                 else:
                     logger.error("无法修复工具调用格式，内存中没有消息")
                     # 恢复原始提示

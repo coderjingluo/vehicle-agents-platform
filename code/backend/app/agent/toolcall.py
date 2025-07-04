@@ -749,20 +749,27 @@ class ToolCallAgent(ReActAgent):
                     logger.info(f"工具 {name} 返回了协程对象，等待其完成...")
                     result = await result
                 
+                # 确保结果是字符串
+                if not isinstance(result, str):
+                    result = json.dumps(result, ensure_ascii=False)
+                
+                # 评估结果并可能进行重试或使用替代工具
+                processed_result = await self.handle_tool_result(name, args, result, tool_call_id)
+                
                 # 检查是否需要处理特殊工具
                 if self._is_special_tool(name):
-                    await self._handle_special_tool(name, result, **args)
+                    await self._handle_special_tool(name, processed_result, **args)
                     
                 # 更新工具使用记录
                 self.update_memory(
                     "tool", 
-                    result if isinstance(result, str) else json.dumps(result, ensure_ascii=False),
+                    processed_result,
                     tool_call_id=tool_call_id,
                     name=name
                 )
                 
                 # 将结果添加到列表
-                results.append(result)
+                results.append(processed_result)
                 
                 # 如果在执行计划中，更新当前步骤状态
                 if hasattr(self, 'current_plan') and self.current_plan:
@@ -1387,9 +1394,14 @@ class ToolCallAgent(ReActAgent):
                     if not isinstance(tool_result, str):
                         tool_result = str(tool_result)
                     
-                    # 记录成功结果
+                    # 记录原始结果
                     logger.info(f"工具 {function_name} 执行成功，结果长度: {len(tool_result)}, 结果: {tool_result}")
-                    self.update_memory("tool", tool_result, tool_call_id=tool_call_id)
+                    
+                    # 评估结果并可能进行重试或使用替代工具
+                    processed_result = await self.handle_tool_result(function_name, function_args, tool_result, tool_call_id)
+                    
+                    # 更新内存
+                    self.update_memory("tool", processed_result, tool_call_id=tool_call_id)
                 except Exception as e:
                     # 记录错误
                     error_msg = f"工具 {function_name} 执行失败: {str(e)}"
@@ -1518,3 +1530,309 @@ class ToolCallAgent(ReActAgent):
         logger.info(f"所有子任务执行完成，共 {len(self.completed_subtasks)}/{len(self.subtasks)} 个子任务成功执行")
         
         return final_result 
+
+    async def evaluate_tool_result(self, tool_name: str, args: Dict[str, Any], result: str) -> Dict[str, Any]:
+        """评估工具调用结果是否符合期望，并提供后续处理建议
+        
+        Args:
+            tool_name: 工具名称
+            args: 工具参数
+            result: 工具执行结果
+            
+        Returns:
+            评估结果，包含以下字段：
+            - success: 是否成功获取有效结果
+            - reason: 成功或失败的原因
+            - retry: 是否需要重试
+            - alternative_tool: 建议使用的替代工具
+            - alternative_args: 建议的替代参数
+        """
+        # 默认评估结果
+        evaluation = {
+            "success": True,
+            "reason": "结果符合预期",
+            "retry": False,
+            "alternative_tool": None,
+            "alternative_args": {}
+        }
+        
+        # 检查结果是否为空或错误信息
+        if not result or result.strip() == "":
+            evaluation["success"] = False
+            evaluation["reason"] = "工具返回空结果"
+            evaluation["retry"] = True
+            return evaluation
+        
+        if result.startswith("错误:") or result.startswith("Error:"):
+            evaluation["success"] = False
+            evaluation["reason"] = f"工具执行出错: {result}"
+            
+            # 根据错误类型提供不同的处理建议
+            if "找不到路径" in result or "No such file or directory" in result:
+                if tool_name == "file_operators":
+                    evaluation["retry"] = True
+                    evaluation["alternative_tool"] = "bash"
+                    evaluation["alternative_args"] = {"command": "pwd"}
+                    evaluation["reason"] += "。建议先获取当前路径，再重试"
+            elif "权限被拒绝" in result or "Permission denied" in result:
+                if tool_name == "file_operators":
+                    evaluation["retry"] = True
+                    evaluation["alternative_tool"] = "bash"
+                    evaluation["alternative_args"] = {"command": f"ls -la {args.get('path', '.')}"}
+                    evaluation["reason"] += "。建议检查文件权限后重试"
+            
+            return evaluation
+        
+        # 针对特定工具的结果评估
+        if tool_name == "web_search":
+            # 检查搜索结果是否有效
+            if "找不到相关结果" in result or "No results found" in result:
+                evaluation["success"] = False
+                evaluation["reason"] = "搜索未返回有效结果"
+                evaluation["retry"] = True
+                
+                # 尝试修改搜索查询
+                query = args.get("query", "")
+                if query:
+                    # 简化查询
+                    if len(query.split()) > 3:
+                        simplified_query = " ".join(query.split()[:3])
+                        evaluation["alternative_args"] = {"query": simplified_query}
+                        evaluation["reason"] += f"。建议使用简化查询: '{simplified_query}'"
+            # 检查是否只返回了链接而没有内容
+            elif "http" in result and len(result.split("\n")) < 5:
+                evaluation["success"] = True  # 部分成功
+                evaluation["reason"] = "搜索只返回了链接，但缺少具体内容"
+                evaluation["alternative_tool"] = "browser_use"
+                
+                # 尝试提取第一个URL
+                import re
+                urls = re.findall(r'https?://[^\s\'"]+', result)
+                if urls:
+                    evaluation["alternative_args"] = {"url": urls[0], "action": "read"}
+                    evaluation["reason"] += f"。建议使用浏览器访问链接获取更详细内容: {urls[0]}"
+        
+        elif tool_name == "file_operators" and args.get("operation") == "list":
+            # 检查文件列表结果是否有效
+            if "[]" in result or "目录为空" in result or "空目录" in result:
+                # 空目录可能是路径错误
+                evaluation["success"] = True  # 技术上成功了，但可能不是预期结果
+                evaluation["reason"] = "目录为空，可能是路径错误"
+                evaluation["alternative_tool"] = "bash"
+                evaluation["alternative_args"] = {"command": "pwd && ls -la"}
+        
+        elif tool_name == "browser_use":
+            # 检查浏览器访问结果是否有效
+            if "无法加载页面" in result or "连接超时" in result or "Cannot load page" in result:
+                evaluation["success"] = False
+                evaluation["reason"] = "无法访问网页"
+                evaluation["retry"] = True
+                evaluation["alternative_args"] = {"timeout": 30}  # 增加超时时间
+            elif "请求被拒绝" in result or "access denied" in result.lower():
+                evaluation["success"] = False
+                evaluation["reason"] = "网站拒绝访问"
+                # 尝试使用不同的工具或参数
+                evaluation["alternative_tool"] = "web_search"
+                evaluation["alternative_args"] = {"query": f"site:{args.get('url', '')} 主要内容"}
+        
+        elif tool_name == "image_generation":
+            # 检查图像生成结果是否有效
+            if "生成失败" in result or "失败" in result:
+                evaluation["success"] = False
+                evaluation["reason"] = "图像生成失败"
+                evaluation["retry"] = True
+                # 可能需要修改提示词或参数
+                prompt = args.get("prompt", "")
+                if prompt:
+                    # 简化或修改提示词
+                    if len(prompt) > 100:
+                        simplified_prompt = prompt[:100]
+                        evaluation["alternative_args"] = {"prompt": simplified_prompt}
+                        evaluation["reason"] += f"。建议使用简化提示词"
+        
+        elif tool_name == "database_query":
+            # 检查数据库查询结果是否有效
+            if "查询错误" in result or "SQL语法错误" in result:
+                evaluation["success"] = False
+                evaluation["reason"] = "数据库查询失败"
+                evaluation["retry"] = True
+                # 可能需要修改SQL语句
+                if "表不存在" in result:
+                    evaluation["alternative_tool"] = "database_query"
+                    evaluation["alternative_args"] = {"query": "SHOW TABLES;"}
+                    evaluation["reason"] += "。建议先查看可用的表"
+            elif "[]" in result or "空结果" in result or "No results" in result:
+                evaluation["success"] = True  # 技术上成功了，但可能不是预期结果
+                evaluation["reason"] = "查询返回空结果，可能需要调整查询条件"
+        
+        elif tool_name == "bash":
+            # 检查bash命令执行结果是否有效
+            if "command not found" in result or "找不到命令" in result:
+                evaluation["success"] = False
+                evaluation["reason"] = "命令不存在"
+                # 尝试使用完整路径或替代命令
+                command = args.get("command", "")
+                if "python" in command:
+                    evaluation["alternative_args"] = {"command": command.replace("python", "python3")}
+                    evaluation["reason"] += "。尝试使用python3替代python"
+                    evaluation["retry"] = True
+            elif "Permission denied" in result or "权限被拒绝" in result:
+                evaluation["success"] = False
+                evaluation["reason"] = "权限不足"
+                command = args.get("command", "")
+                if not command.startswith("sudo ") and not "chmod" in command:
+                    evaluation["alternative_args"] = {"command": f"sudo {command}"}
+                    evaluation["reason"] += "。尝试使用sudo提升权限"
+                    evaluation["retry"] = True
+        
+        elif tool_name == "rag_query":
+            # 检查RAG查询结果是否有效
+            if "找不到相关内容" in result or "无相关信息" in result or "No relevant information" in result:
+                evaluation["success"] = False
+                evaluation["reason"] = "知识库中找不到相关信息"
+                evaluation["alternative_tool"] = "web_search"
+                query = args.get("query", "")
+                if query:
+                    evaluation["alternative_args"] = {"query": query}
+                    evaluation["reason"] += "。建议尝试使用网络搜索获取信息"
+        
+        # 通用错误检查（适用于所有工具）
+        common_error_patterns = [
+            {"pattern": "超时", "reason": "工具执行超时", "retry": True, "args": {"timeout": 60}},
+            {"pattern": "连接错误", "reason": "网络连接错误", "retry": True},
+            {"pattern": "API速率限制", "reason": "API限制", "retry": True, "delay": 5},
+            {"pattern": "无权访问", "reason": "权限不足", "retry": False},
+            {"pattern": "参数无效", "reason": "无效参数", "retry": False},
+            {"pattern": "资源不存在", "reason": "请求的资源不存在", "retry": False},
+            {"pattern": "服务不可用", "reason": "服务暂时不可用", "retry": True, "delay": 10}
+        ]
+        
+        for error_check in common_error_patterns:
+            if error_check["pattern"] in result:
+                evaluation["success"] = False
+                evaluation["reason"] = error_check["reason"]
+                evaluation["retry"] = error_check.get("retry", False)
+                if "args" in error_check:
+                    evaluation["alternative_args"] = error_check["args"]
+                # 如果需要延迟重试，暂时先不处理，直接标记失败
+                break
+        
+        return evaluation
+
+    async def handle_tool_result(self, tool_name: str, args: Dict[str, Any], result: str, tool_call_id: str) -> str:
+        """处理工具调用结果，包括评估和可能的重试
+        
+        Args:
+            tool_name: 工具名称
+            args: 工具参数
+            result: 工具执行结果
+            tool_call_id: 工具调用ID
+            
+        Returns:
+            最终处理后的结果
+        """
+        # 评估结果
+        evaluation = await self.evaluate_tool_result(tool_name, args, result)
+        
+        # 记录评估结果
+        logger.info(f"工具 {tool_name} 结果评估: {evaluation}")
+        
+        # 如果结果符合预期，直接返回
+        if evaluation["success"] and not evaluation["retry"]:
+            return result
+        
+        # 如果需要使用替代工具
+        if evaluation["alternative_tool"]:
+            logger.info(f"使用替代工具 {evaluation['alternative_tool']} 处理 {tool_name} 的结果")
+            
+            # 执行替代工具
+            alt_tool = None
+            if hasattr(self, 'available_tools'):
+                if hasattr(self.available_tools, 'get_tool'):
+                    alt_tool = self.available_tools.get_tool(evaluation["alternative_tool"])
+                elif hasattr(self.available_tools, 'tools'):
+                    alt_tool = next((t for t in self.available_tools.tools if getattr(t, 'name', '') == evaluation["alternative_tool"]), None)
+            
+            if alt_tool:
+                try:
+                    # 执行替代工具
+                    alt_result = await alt_tool.execute(**evaluation["alternative_args"]) if asyncio.iscoroutinefunction(alt_tool.execute) else alt_tool.execute(**evaluation["alternative_args"])
+                    
+                    # 检查结果是否是协程对象，如果是则等待其完成
+                    if asyncio.iscoroutine(alt_result):
+                        logger.info(f"替代工具 {evaluation['alternative_tool']} 返回了协程对象，等待其完成...")
+                        alt_result = await alt_result
+                    
+                    # 更新内存
+                    alt_result_str = str(alt_result)
+                    self.update_memory("tool", alt_result_str, tool_call_id=f"{tool_call_id}_alt")
+                    
+                    # 如果是获取路径后重试文件操作
+                    if tool_name == "file_operators" and evaluation["alternative_tool"] == "bash" and args.get("operation") == "list":
+                        # 提取当前路径
+                        current_path = alt_result_str.strip().split("\n")[0] if "\n" in alt_result_str else alt_result_str.strip()
+                        
+                        # 重新执行file_operators
+                        logger.info(f"使用获取的路径 {current_path} 重试 file_operators")
+                        
+                        file_tool = self.available_tools.get_tool("file_operators")
+                        if file_tool:
+                            retry_args = args.copy()
+                            retry_args["path"] = current_path
+                            retry_result = await file_tool.execute(**retry_args)
+                            
+                            # 检查结果是否是协程对象
+                            if asyncio.iscoroutine(retry_result):
+                                retry_result = await retry_result
+                                
+                            # 更新内存
+                            retry_result_str = str(retry_result)
+                            self.update_memory("tool", retry_result_str, tool_call_id=f"{tool_call_id}_retry")
+                            
+                            # 返回组合结果
+                            return f"原始结果: {result}\n\n执行 {evaluation['alternative_tool']}: {alt_result_str}\n\n重试 {tool_name}: {retry_result_str}"
+                    
+                    # 返回组合结果
+                    return f"原始结果: {result}\n\n执行 {evaluation['alternative_tool']}: {alt_result_str}"
+                except Exception as e:
+                    logger.error(f"执行替代工具 {evaluation['alternative_tool']} 时出错: {str(e)}")
+                    return f"原始结果: {result}\n\n尝试使用替代工具 {evaluation['alternative_tool']} 时出错: {str(e)}"
+        
+        # 如果需要重试但没有替代工具
+        if evaluation["retry"] and not evaluation["alternative_tool"]:
+            logger.info(f"重试工具 {tool_name}")
+            
+            # 获取工具
+            retry_tool = None
+            if hasattr(self, 'available_tools'):
+                if hasattr(self.available_tools, 'get_tool'):
+                    retry_tool = self.available_tools.get_tool(tool_name)
+                elif hasattr(self.available_tools, 'tools'):
+                    retry_tool = next((t for t in self.available_tools.tools if getattr(t, 'name', '') == tool_name), None)
+            
+            if retry_tool:
+                try:
+                    # 使用修改后的参数重试
+                    retry_args = args.copy()
+                    if evaluation["alternative_args"]:
+                        retry_args.update(evaluation["alternative_args"])
+                    
+                    # 执行重试
+                    retry_result = await retry_tool.execute(**retry_args) if asyncio.iscoroutinefunction(retry_tool.execute) else retry_tool.execute(**retry_args)
+                    
+                    # 检查结果是否是协程对象
+                    if asyncio.iscoroutine(retry_result):
+                        retry_result = await retry_result
+                    
+                    # 更新内存
+                    retry_result_str = str(retry_result)
+                    self.update_memory("tool", retry_result_str, tool_call_id=f"{tool_call_id}_retry")
+                    
+                    # 返回组合结果
+                    return f"原始结果: {result}\n\n重试 {tool_name}: {retry_result_str}"
+                except Exception as e:
+                    logger.error(f"重试工具 {tool_name} 时出错: {str(e)}")
+                    return f"原始结果: {result}\n\n尝试重试时出错: {str(e)}"
+        
+        # 默认返回原始结果
+        return result 

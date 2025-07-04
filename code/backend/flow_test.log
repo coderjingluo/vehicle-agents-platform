@@ -1,37 +1,90 @@
-开始API测试...
-[00:35:42] INFO     HTTP Request: POST http://localhost:8000/api/v1/auth/login "HTTP/1.1 200 OK"
-[00:35:42] INFO     登录成功，获取到令牌: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc1MTk5MjU0Mn0.fqHoldp61Mnhnn7wI7NeM5g73Y_zqLMIra12UZL6070
-[00:35:42] INFO     ✅ 测试通过: 认证登录
-[00:35:42] INFO     HTTP Request: GET http://localhost:8000/api/v1/auth/me "HTTP/1.1 200 OK"
-[00:35:42] INFO     ✅ 测试通过: 获取当前用户
-[00:35:42] INFO     HTTP Request: POST http://localhost:8000/api/v1/auth/refresh "HTTP/1.1 401 Unauthorized"
-[00:35:42] ERROR    POST http://localhost:8000/api/v1/auth/refresh 失败: Client error '401 Unauthorized' for url 'http://localhost:8000/api/v1/auth/refresh'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
-[00:35:42] INFO     ✅ 测试通过: 刷新令牌API调用
-[00:35:42] INFO     HTTP Request: POST http://localhost:8000/api/v1/auth/logout "HTTP/1.1 200 OK"
-[00:35:42] INFO     ✅ 测试通过: 用户登出
-[00:35:42] INFO     HTTP Request: POST http://localhost:8000/api/v1/flow "HTTP/1.1 201 Created"
-[00:35:42] INFO     ✅ 测试通过: 创建执行流
-[00:35:42] INFO     HTTP Request: GET http://localhost:8000/api/v1/flow/c9505987-0269-4686-a35f-e92d17e0daab "HTTP/1.1 200 OK"
-[00:35:42] INFO     ✅ 测试通过: 获取执行流详情
-[00:35:42] INFO     HTTP Request: POST http://localhost:8000/api/v1/flow/c9505987-0269-4686-a35f-e92d17e0daab/execute "HTTP/1.1 200 OK"
-[00:35:42] INFO     ✅ 测试通过: 执行流
-[00:35:42] INFO     清理测试数据...
-[00:35:42] INFO     HTTP Request: DELETE http://localhost:8000/api/v1/flow/c9505987-0269-4686-a35f-e92d17e0daab "HTTP/1.1 500 Internal Server Error"
-[00:35:42] ERROR    DELETE http://localhost:8000/api/v1/flow/c9505987-0269-4686-a35f-e92d17e0daab 失败: Server error '500 Internal Server Error' for url 'http://localhost:8000/api/v1/flow/c9505987-0269-4686-a35f-e92d17e0daab'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
-[00:35:42] INFO     已删除执行流: c9505987-0269-4686-a35f-e92d17e0daab
-         API测试结果         
-┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓
-┃ 测试            ┃ 结果    ┃
-┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━┩
-│ 认证登录        │ ✅ 通过 │
-│ 获取当前用户    │ ✅ 通过 │
-│ 刷新令牌API调用 │ ✅ 通过 │
-│ 用户登出        │ ✅ 通过 │
-│ 创建执行流      │ ✅ 通过 │
-│ 获取执行流详情  │ ✅ 通过 │
-│ 执行流          │ ✅ 通过 │
-└─────────────────┴─────────┘
-总计: 7 测试, 7 通过, 0 失败
-详细测试日志已保存到: /mnt/hgfs/tara_agent_platform/code/backend/detailed_api_test_results.log
+子任务 1: ID=subtask-1, 名称=系统边界识别与定义, 包含 2 个步骤, 步骤信息：
+[
+{'id': 'step-1.1', 'description': '识别系统的主要组件及其功能，例如车载ECU、通信模块、车载应用等', 
+'tools': ['create_chat_completion', 'file_operator'], 
+'expected_output': '列出车联网系统的主要组件及其功能描述'}, 
+
+{'id': 'step-1.2', 'description': '定义系统与外部实体的交互边界，例如与云端服务器、其他车辆、基础设施(V2X)的通信接口', 
+'tools': ['create_chat_completion', 'file_operator'], 
+'expected_output': '定义系统边界图或交互模型'}
+], 依赖=[]
+
+子任务 2: ID=subtask-2, 名称=资产识别与梳理, 包含 3 个步骤, 步骤信息：
+[
+{'id': 'step-2.1', 'description': '列出系统中的关键硬件资产，例如车载控制器、通信模块、车载摄像头等', 
+'tools': ['create_chat_completion', 'file_operator'], 
+'expected_output': '关键硬件资产列表及其功能描述'}, 
+{'id': 'step-2.2', 'description': '识别软件资产，例如车载操作系统、中间件、通信协议栈等', 
+'tools': ['create_chat_completion', 'file_operator'], 
+'expected_output': '关键软件资产列表及其功能描述'}, 
+{'id': 'step-2.3', 'description': '识别数据资产，例如用户隐私数据、车辆状态数据、驾驶行为数据等', 
+'tools': ['create_chat_completion', 'file_operator'], 
+'expected_output': '关键数据资产列表及其存储和传输方式'}], 依赖=['subtask-1']
+
+子任务 3: ID=subtask-3, 名称=攻击面分析, 包含 3 个步骤, 步骤信息：
+[{'id': 'step-3.1', 'description': '识别软件攻击面，例如Web接口、API、通信协议等', 
+'tools': ['create_chat_completion', 'web_search', 'browser_use'], 
+'expected_output': '列出软件攻击面及其潜在威胁'}, 
+{'id': 'step-3.2', 'description': '识别硬件攻击面，例如车载OBD接口、蓝牙接口、CAN总线等', 
+'tools': ['create_chat_completion', 'web_search', 'browser_use'], 
+'expected_output': '列出硬件攻击面及其潜在威胁'}, 
+{'id': 'step-3.3', 'description': '识别通信攻击面，例如无线通信、V2X通信、云端接口等', 
+'tools': ['create_chat_completion', 'web_search', 'browser_use'], 
+'expected_output': '列出通信攻击面及其潜在威胁'}], 依赖=['subtask-2']
+子任务 4: ID=subtask-4, 名称=威胁场景建模, 包含 2 个步骤, 步骤信息：
+[
+{'id': 'step-4.1', 'description': '根据攻击面分析结果，构建不同攻击者(如黑客、恶意车辆、内部人员)的攻击场景', 
+'tools': ['create_chat_completion', 'file_operator'], 
+'expected_output': '威胁场景列表及其攻击者角色、攻击路径和目标'}, 
+{'id': 'step-4.2', 'description': '对威胁场景进行描述和分类，例如数据篡改、拒绝服务、身份伪装等', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '威胁场景描述及其分类'}], 依赖=['subtask-3']
+子任务 5: ID=subtask-5, 名称=攻击树构建, 包含 2 个步骤, 步骤信息：
+[
+{'id': 'step-5.1', 'description': '基于威胁场景构建攻击树，包括根节点(攻击目标)和子节点(攻击路径)', 
+'tools': ['create_chat_completion', 'file_operator'], 
+'expected_output': '攻击树模型及其描述文档'}, 
+{'id': 'step-5.2', 'description': '分析攻击树中的关键路径，评估攻击路径的可能性和影响', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '攻击路径的评估结果及其优先级排序'}], 依赖=['subtask-4']
+子任务 6: ID=subtask-6, 名称=风险评估, 包含 3 个步骤, 步骤信息：
+[
+{'id': 'step-6.1', 'description': '为每个威胁场景评估其影响等级，包括数据泄露、车辆控制、人身安全等', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '威胁影响等级评估结果'}, 
+{'id': 'step-6.2', 'description': '评估威胁场景的可能性，包括攻击者能力、漏洞利用难度等', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '威胁可能性评估结果'}, 
+{'id': 'step-6.3', 'description': '综合影响和可能性，计算威胁的风险等级，例如高/中/低', 
+'tools': ['create_chat_completion', 'file_operator', 'tara_analysis'], 
+'expected_output': '风险等级评估结果及其优先级排序'}], 依赖=['subtask-5']
+子任务 7: ID=subtask-7, 名称=缓解措施构建, 包含 3 个步骤, 步骤信息：
+[
+{'id': 'step-7.1', 'description': '为高风险威胁提出技术缓解措施，例如加密、访问控制、认证机制', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '技术缓解措施列表'}, 
+{'id': 'step-7.2', 'description': '提出管理缓解措施，例如安全策略、人员培训、访问控制策略', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '管理缓解措施列表'}, 
+{'id': 'step-7.3', 'description': '提出法律和合规性缓解措施，例如遵守相关安全法规、数据保护法律', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '法律和合规性缓解措施列表'}], 依赖=['subtask-6']
+子任务 8: ID=subtask-8, 名称=安全需求构建, 包含 2 个步骤, 步骤信息：
+[
+{'id': 'step-8.1', 'description': '为每个缓解措施定义具体的安全需求，例如认证机制的安全等级、加密强度等', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '安全需求列表及详细描述'}, 
+{'id': 'step-8.2', 'description': '将安全需求按照优先级排序，例如高优先级需求、中优先级需求', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '安全需求优先级排序列表'}], 依赖=['subtask-7']
+子任务 9: ID=subtask-9, 名称=验证测试方案建议, 包含 3 个步骤, 步骤信息：
+[
+{'id': 'step-9.1', 'description': '为每个安全需求提出测试方法，例如渗透测试、模糊测试、模拟攻击等', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '安全需求测试方案'}, 
+{'id': 'step-9.2', 'description': '提出测试工具和平台建议，例如Wireshark、Nmap、Metasploit等', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '测试工具和平台推荐列表'}, 
+{'id': 'step-9.3', 'description': '制定测试计划，包括测试时间、测试人员、测试环境等', 
+'tools': ['create_chat_completion', 'file_operator', 'web_search'], 
+'expected_output': '测试计划文档及时间表'}], 依赖=['subtask-8']

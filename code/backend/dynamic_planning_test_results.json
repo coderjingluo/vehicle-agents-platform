@@ -1,132 +1,27 @@
 {
-  "timestamp": "2025-07-03T16:51:49.978024",
+  "timestamp": "2025-07-04T10:56:57.378675",
   "tests": {
     "tara": {
       "success": false,
-      "error": "未能生成动态计划",
-      "details": {
-        "id": "2ad9a47d-c523-45b8-885f-9b8e1e7090cc",
-        "name": "执行车联网ECU安全TARA分析",
-        "description": "针对车载ECU系统执行威胁分析与风险评估，识别资产、威胁、风险，并提出缓解措施",
-        "type": "tara",
-        "status": "completed",
-        "progress": 100,
-        "user_id": "de6eb440-2610-431a-8129-126d5ab64e8c",
-        "created_at": "2025-07-03T08:51:51.007533",
-        "updated_at": "2025-07-03T16:53:35.942902",
-        "input_data": {
-          "target_system": "车载ECU",
-          "security_focus": "网络安全",
-          "output_format": "详细报告"
-        },
-        "output_data": "{'success': True, 'result': {'title': '车联网系统威胁分析与风险评估报告', 'date': '2025-07-03', 'summary': '本报告提供了对车联网系统的全面安全评估，包括资产识别、威胁分析、风险评估和缓解措施建议。', 'assets': [{'id': 'A001', 'name': '车载中控系统', 'type': '硬件', 'importance': '高', 'description': '车辆的核心控制系统，管理车辆的关键功能'}, {'id': 'A002', 'name': '车联网通信模块', 'type': '硬件', 'importance': '高', 'description': '负责车辆与外部网络的通信'}, {'id': 'A003', 'name': '车辆操作系统', 'type': '软件', 'importance': '高', 'description': '车辆的基础操作系统，管理各个子系统'}], 'threats': [{'id': 'T001', 'name': '篡改: 车载中控系统', 'asset_id': 'A001', 'type': '篡改', 'likelihood': '中', 'description': '针对车载中控系统的篡改威胁'}, {'id': 'T002', 'name': '篡改: 车联网通信模块', 'asset_id': 'A002', 'type': '篡改', 'likelihood': '中', 'description': '针对车联网通信模块的篡改威胁'}, {'id': 'T003', 'name': '权限提升: 车辆操作系统', 'asset_id': 'A003', 'type': '权限提升', 'likelihood': '中', 'description': '针对车辆操作系统的权限提升威胁'}], 'risks': [{'id': 'R001', 'threat_id': 'T001', 'asset_id': 'A001', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车载中控系统 对资产的影响'}, {'id': 'R002', 'threat_id': 'T002', 'asset_id': 'A002', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车联网通信模块 对资产的影响'}, {'id': 'R003', 'threat_id': 'T003', 'asset_id': 'A003', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：权限提升: 车辆操作系统 对资产的影响'}], 'countermeasures': [{'id': 'M001', 'risk_id': 'R001', 'name': '技术措施 1', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M002', 'risk_id': 'R001', 'name': '管理措施 2', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M003', 'risk_id': 'R001', 'name': '监控措施 3', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M004', 'risk_id': 'R002', 'name': '技术措施 4', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M005', 'risk_id': 'R002', 'name': '管理措施 5', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M006', 'risk_id': 'R002', 'name': '监控措施 6', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M007', 'risk_id': 'R003', 'name': '技术措施 7', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M008', 'risk_id': 'R003', 'name': '管理措施 8', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M009', 'risk_id': 'R003', 'name': '监控措施 9', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}], 'conclusion': '基于TARA分析，系统存在多项安全风险，需要实施相应的缓解措施以提高系统安全性。', 'content': \"错误: name 'logger' is not defined\"}, 'assets': [{'id': 'A001', 'name': '车载中控系统', 'type': '硬件', 'importance': '高', 'description': '车辆的核心控制系统，管理车辆的关键功能'}, {'id': 'A002', 'name': '车联网通信模块', 'type': '硬件', 'importance': '高', 'description': '负责车辆与外部网络的通信'}, {'id': 'A003', 'name': '车辆操作系统', 'type': '软件', 'importance': '高', 'description': '车辆的基础操作系统，管理各个子系统'}], 'threats': [{'id': 'T001', 'name': '篡改: 车载中控系统', 'asset_id': 'A001', 'type': '篡改', 'likelihood': '中', 'description': '针对车载中控系统的篡改威胁'}, {'id': 'T002', 'name': '篡改: 车联网通信模块', 'asset_id': 'A002', 'type': '篡改', 'likelihood': '中', 'description': '针对车联网通信模块的篡改威胁'}, {'id': 'T003', 'name': '权限提升: 车辆操作系统', 'asset_id': 'A003', 'type': '权限提升', 'likelihood': '中', 'description': '针对车辆操作系统的权限提升威胁'}], 'risks': [{'id': 'R001', 'threat_id': 'T001', 'asset_id': 'A001', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车载中控系统 对资产的影响'}, {'id': 'R002', 'threat_id': 'T002', 'asset_id': 'A002', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车联网通信模块 对资产的影响'}, {'id': 'R003', 'threat_id': 'T003', 'asset_id': 'A003', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：权限提升: 车辆操作系统 对资产的影响'}], 'countermeasures': [{'id': 'M001', 'risk_id': 'R001', 'name': '技术措施 1', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M002', 'risk_id': 'R001', 'name': '管理措施 2', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M003', 'risk_id': 'R001', 'name': '监控措施 3', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M004', 'risk_id': 'R002', 'name': '技术措施 4', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M005', 'risk_id': 'R002', 'name': '管理措施 5', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M006', 'risk_id': 'R002', 'name': '监控措施 6', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M007', 'risk_id': 'R003', 'name': '技术措施 7', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M008', 'risk_id': 'R003', 'name': '管理措施 8', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M009', 'risk_id': 'R003', 'name': '监控措施 9', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}]}",
-        "flow": {
-          "id": "e349d1a0-a82b-465d-abaa-e2eb66fd40d1",
-          "status": "COMPLETED",
-          "current_step": null,
-          "progress": 100,
-          "error": null
-        }
-      }
+      "error": "任务执行超时"
     },
     "testcase": {
       "success": false,
-      "error": "未能生成动态计划",
-      "details": {
-        "id": "239abb18-5968-4bbd-b350-90fa866aa4f7",
-        "name": "针对车载网络安全生成测试用例",
-        "description": "针对车联网系统的CAN总线网络安全特性，生成一组完整的渗透测试用例",
-        "type": "test_case",
-        "status": "completed",
-        "progress": 100,
-        "user_id": "de6eb440-2610-431a-8129-126d5ab64e8c",
-        "created_at": "2025-07-03T08:53:36.364449",
-        "updated_at": "2025-07-03T16:55:24.477183",
-        "input_data": {
-          "target_system": "CAN总线网络",
-          "test_focus": "渗透测试",
-          "security_level": "高"
-        },
-        "output_data": "{'success': True, 'result': {'title': '车联网系统威胁分析与风险评估报告', 'date': '2025-07-03', 'summary': '本报告提供了对车联网系统的全面安全评估，包括资产识别、威胁分析、风险评估和缓解措施建议。', 'assets': [{'id': 'A001', 'name': '车载中控系统', 'type': '硬件', 'importance': '高', 'description': '车辆的核心控制系统，管理车辆的关键功能'}, {'id': 'A002', 'name': '车联网通信模块', 'type': '硬件', 'importance': '高', 'description': '负责车辆与外部网络的通信'}, {'id': 'A003', 'name': '车辆操作系统', 'type': '软件', 'importance': '高', 'description': '车辆的基础操作系统，管理各个子系统'}], 'threats': [{'id': 'T001', 'name': '篡改: 车载中控系统', 'asset_id': 'A001', 'type': '篡改', 'likelihood': '中', 'description': '针对车载中控系统的篡改威胁'}, {'id': 'T002', 'name': '篡改: 车联网通信模块', 'asset_id': 'A002', 'type': '篡改', 'likelihood': '中', 'description': '针对车联网通信模块的篡改威胁'}, {'id': 'T003', 'name': '权限提升: 车辆操作系统', 'asset_id': 'A003', 'type': '权限提升', 'likelihood': '中', 'description': '针对车辆操作系统的权限提升威胁'}], 'risks': [{'id': 'R001', 'threat_id': 'T001', 'asset_id': 'A001', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车载中控系统 对资产的影响'}, {'id': 'R002', 'threat_id': 'T002', 'asset_id': 'A002', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车联网通信模块 对资产的影响'}, {'id': 'R003', 'threat_id': 'T003', 'asset_id': 'A003', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：权限提升: 车辆操作系统 对资产的影响'}], 'countermeasures': [{'id': 'M001', 'risk_id': 'R001', 'name': '技术措施 1', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M002', 'risk_id': 'R001', 'name': '管理措施 2', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M003', 'risk_id': 'R001', 'name': '监控措施 3', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M004', 'risk_id': 'R002', 'name': '技术措施 4', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M005', 'risk_id': 'R002', 'name': '管理措施 5', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M006', 'risk_id': 'R002', 'name': '监控措施 6', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M007', 'risk_id': 'R003', 'name': '技术措施 7', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M008', 'risk_id': 'R003', 'name': '管理措施 8', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M009', 'risk_id': 'R003', 'name': '监控措施 9', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}], 'conclusion': '基于TARA分析，系统存在多项安全风险，需要实施相应的缓解措施以提高系统安全性。', 'content': \"错误: name 'logger' is not defined\"}, 'assets': [{'id': 'A001', 'name': '车载中控系统', 'type': '硬件', 'importance': '高', 'description': '车辆的核心控制系统，管理车辆的关键功能'}, {'id': 'A002', 'name': '车联网通信模块', 'type': '硬件', 'importance': '高', 'description': '负责车辆与外部网络的通信'}, {'id': 'A003', 'name': '车辆操作系统', 'type': '软件', 'importance': '高', 'description': '车辆的基础操作系统，管理各个子系统'}], 'threats': [{'id': 'T001', 'name': '篡改: 车载中控系统', 'asset_id': 'A001', 'type': '篡改', 'likelihood': '中', 'description': '针对车载中控系统的篡改威胁'}, {'id': 'T002', 'name': '篡改: 车联网通信模块', 'asset_id': 'A002', 'type': '篡改', 'likelihood': '中', 'description': '针对车联网通信模块的篡改威胁'}, {'id': 'T003', 'name': '权限提升: 车辆操作系统', 'asset_id': 'A003', 'type': '权限提升', 'likelihood': '中', 'description': '针对车辆操作系统的权限提升威胁'}], 'risks': [{'id': 'R001', 'threat_id': 'T001', 'asset_id': 'A001', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车载中控系统 对资产的影响'}, {'id': 'R002', 'threat_id': 'T002', 'asset_id': 'A002', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车联网通信模块 对资产的影响'}, {'id': 'R003', 'threat_id': 'T003', 'asset_id': 'A003', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：权限提升: 车辆操作系统 对资产的影响'}], 'countermeasures': [{'id': 'M001', 'risk_id': 'R001', 'name': '技术措施 1', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M002', 'risk_id': 'R001', 'name': '管理措施 2', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M003', 'risk_id': 'R001', 'name': '监控措施 3', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M004', 'risk_id': 'R002', 'name': '技术措施 4', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M005', 'risk_id': 'R002', 'name': '管理措施 5', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M006', 'risk_id': 'R002', 'name': '监控措施 6', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M007', 'risk_id': 'R003', 'name': '技术措施 7', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M008', 'risk_id': 'R003', 'name': '管理措施 8', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M009', 'risk_id': 'R003', 'name': '监控措施 9', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}]}",
-        "flow": {
-          "id": "a8bd3bd1-5344-41a6-8de9-191e883b95df",
-          "status": "COMPLETED",
-          "current_step": null,
-          "progress": 100,
-          "error": null
-        }
-      }
+      "error": "任务执行超时"
     },
     "automation": {
       "success": false,
-      "error": "未能生成动态计划",
-      "details": {
-        "id": "b3317dcc-5498-4f15-aa02-b3844e0349d7",
-        "name": "执行车联网CAN总线安全自动化测试",
-        "description": "使用自动化工具执行CAN总线安全渗透测试，包括模糊测试、DoS测试和重放攻击",
-        "type": "automation",
-        "status": "completed",
-        "progress": 100,
-        "user_id": "de6eb440-2610-431a-8129-126d5ab64e8c",
-        "created_at": "2025-07-03T08:55:25.111917",
-        "updated_at": "2025-07-03T16:57:01.796999",
-        "input_data": {
-          "target_system": "CAN总线",
-          "test_type": [
-            "fuzzing",
-            "dos",
-            "replay"
-          ],
-          "duration": "standard"
-        },
-        "output_data": "{'success': True, 'result': {'title': '车联网系统威胁分析与风险评估报告', 'date': '2025-07-03', 'summary': '本报告提供了对车联网系统的全面安全评估，包括资产识别、威胁分析、风险评估和缓解措施建议。', 'assets': [{'id': 'A001', 'name': '车载中控系统', 'type': '硬件', 'importance': '高', 'description': '车辆的核心控制系统，管理车辆的关键功能'}, {'id': 'A002', 'name': '车联网通信模块', 'type': '硬件', 'importance': '高', 'description': '负责车辆与外部网络的通信'}, {'id': 'A003', 'name': '车辆操作系统', 'type': '软件', 'importance': '高', 'description': '车辆的基础操作系统，管理各个子系统'}], 'threats': [{'id': 'T001', 'name': '篡改: 车载中控系统', 'asset_id': 'A001', 'type': '篡改', 'likelihood': '中', 'description': '针对车载中控系统的篡改威胁'}, {'id': 'T002', 'name': '篡改: 车联网通信模块', 'asset_id': 'A002', 'type': '篡改', 'likelihood': '中', 'description': '针对车联网通信模块的篡改威胁'}, {'id': 'T003', 'name': '权限提升: 车辆操作系统', 'asset_id': 'A003', 'type': '权限提升', 'likelihood': '中', 'description': '针对车辆操作系统的权限提升威胁'}], 'risks': [{'id': 'R001', 'threat_id': 'T001', 'asset_id': 'A001', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车载中控系统 对资产的影响'}, {'id': 'R002', 'threat_id': 'T002', 'asset_id': 'A002', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车联网通信模块 对资产的影响'}, {'id': 'R003', 'threat_id': 'T003', 'asset_id': 'A003', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：权限提升: 车辆操作系统 对资产的影响'}], 'countermeasures': [{'id': 'M001', 'risk_id': 'R001', 'name': '技术措施 1', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M002', 'risk_id': 'R001', 'name': '管理措施 2', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M003', 'risk_id': 'R001', 'name': '监控措施 3', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M004', 'risk_id': 'R002', 'name': '技术措施 4', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M005', 'risk_id': 'R002', 'name': '管理措施 5', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M006', 'risk_id': 'R002', 'name': '监控措施 6', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M007', 'risk_id': 'R003', 'name': '技术措施 7', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M008', 'risk_id': 'R003', 'name': '管理措施 8', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M009', 'risk_id': 'R003', 'name': '监控措施 9', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}], 'conclusion': '基于TARA分析，系统存在多项安全风险，需要实施相应的缓解措施以提高系统安全性。', 'content': \"错误: name 'logger' is not defined\"}, 'assets': [{'id': 'A001', 'name': '车载中控系统', 'type': '硬件', 'importance': '高', 'description': '车辆的核心控制系统，管理车辆的关键功能'}, {'id': 'A002', 'name': '车联网通信模块', 'type': '硬件', 'importance': '高', 'description': '负责车辆与外部网络的通信'}, {'id': 'A003', 'name': '车辆操作系统', 'type': '软件', 'importance': '高', 'description': '车辆的基础操作系统，管理各个子系统'}], 'threats': [{'id': 'T001', 'name': '篡改: 车载中控系统', 'asset_id': 'A001', 'type': '篡改', 'likelihood': '中', 'description': '针对车载中控系统的篡改威胁'}, {'id': 'T002', 'name': '篡改: 车联网通信模块', 'asset_id': 'A002', 'type': '篡改', 'likelihood': '中', 'description': '针对车联网通信模块的篡改威胁'}, {'id': 'T003', 'name': '权限提升: 车辆操作系统', 'asset_id': 'A003', 'type': '权限提升', 'likelihood': '中', 'description': '针对车辆操作系统的权限提升威胁'}], 'risks': [{'id': 'R001', 'threat_id': 'T001', 'asset_id': 'A001', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车载中控系统 对资产的影响'}, {'id': 'R002', 'threat_id': 'T002', 'asset_id': 'A002', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车联网通信模块 对资产的影响'}, {'id': 'R003', 'threat_id': 'T003', 'asset_id': 'A003', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：权限提升: 车辆操作系统 对资产的影响'}], 'countermeasures': [{'id': 'M001', 'risk_id': 'R001', 'name': '技术措施 1', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M002', 'risk_id': 'R001', 'name': '管理措施 2', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M003', 'risk_id': 'R001', 'name': '监控措施 3', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M004', 'risk_id': 'R002', 'name': '技术措施 4', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M005', 'risk_id': 'R002', 'name': '管理措施 5', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M006', 'risk_id': 'R002', 'name': '监控措施 6', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M007', 'risk_id': 'R003', 'name': '技术措施 7', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M008', 'risk_id': 'R003', 'name': '管理措施 8', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M009', 'risk_id': 'R003', 'name': '监控措施 9', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}]}",
-        "flow": {
-          "id": "26e7cb66-c574-490d-9661-5ca0bb53d97b",
-          "status": "COMPLETED",
-          "current_step": null,
-          "progress": 100,
-          "error": null
-        }
-      }
+      "error": "任务执行超时"
     },
     "report": {
       "success": false,
-      "error": "未能生成动态计划",
-      "details": {
-        "id": "737a1076-91fd-4c2d-a5dc-8da145cd1c3b",
-        "name": "生成车联网安全测试综合报告",
-        "description": "基于TARA分析结果和自动化测试结果，生成一份全面的车联网安全测试报告",
-        "type": "report",
-        "status": "completed",
-        "progress": 100,
-        "user_id": "de6eb440-2610-431a-8129-126d5ab64e8c",
-        "created_at": "2025-07-03T08:57:03.453740",
-        "updated_at": "2025-07-03T16:58:33.298630",
-        "input_data": {
-          "report_type": "comprehensive",
-          "include_sections": [
-            "executive_summary",
-            "threats",
-            "vulnerabilities",
-            "recommendations"
-          ],
-          "format": "pdf"
-        },
-        "output_data": "{'success': True, 'result': {'title': '车联网系统威胁分析与风险评估报告', 'date': '2025-07-03', 'summary': '本报告提供了对车联网系统的全面安全评估，包括资产识别、威胁分析、风险评估和缓解措施建议。', 'assets': [{'id': 'A001', 'name': '车载中控系统', 'type': '硬件', 'importance': '高', 'description': '车辆的核心控制系统，管理车辆的关键功能'}, {'id': 'A002', 'name': '车联网通信模块', 'type': '硬件', 'importance': '高', 'description': '负责车辆与外部网络的通信'}, {'id': 'A003', 'name': '车辆操作系统', 'type': '软件', 'importance': '高', 'description': '车辆的基础操作系统，管理各个子系统'}], 'threats': [{'id': 'T001', 'name': '篡改: 车载中控系统', 'asset_id': 'A001', 'type': '篡改', 'likelihood': '中', 'description': '针对车载中控系统的篡改威胁'}, {'id': 'T002', 'name': '篡改: 车联网通信模块', 'asset_id': 'A002', 'type': '篡改', 'likelihood': '中', 'description': '针对车联网通信模块的篡改威胁'}, {'id': 'T003', 'name': '权限提升: 车辆操作系统', 'asset_id': 'A003', 'type': '权限提升', 'likelihood': '中', 'description': '针对车辆操作系统的权限提升威胁'}], 'risks': [{'id': 'R001', 'threat_id': 'T001', 'asset_id': 'A001', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车载中控系统 对资产的影响'}, {'id': 'R002', 'threat_id': 'T002', 'asset_id': 'A002', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车联网通信模块 对资产的影响'}, {'id': 'R003', 'threat_id': 'T003', 'asset_id': 'A003', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：权限提升: 车辆操作系统 对资产的影响'}], 'countermeasures': [{'id': 'M001', 'risk_id': 'R001', 'name': '技术措施 1', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M002', 'risk_id': 'R001', 'name': '管理措施 2', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M003', 'risk_id': 'R001', 'name': '监控措施 3', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M004', 'risk_id': 'R002', 'name': '技术措施 4', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M005', 'risk_id': 'R002', 'name': '管理措施 5', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M006', 'risk_id': 'R002', 'name': '监控措施 6', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M007', 'risk_id': 'R003', 'name': '技术措施 7', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M008', 'risk_id': 'R003', 'name': '管理措施 8', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M009', 'risk_id': 'R003', 'name': '监控措施 9', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}], 'conclusion': '基于TARA分析，系统存在多项安全风险，需要实施相应的缓解措施以提高系统安全性。', 'content': \"错误: name 'logger' is not defined\"}, 'assets': [{'id': 'A001', 'name': '车载中控系统', 'type': '硬件', 'importance': '高', 'description': '车辆的核心控制系统，管理车辆的关键功能'}, {'id': 'A002', 'name': '车联网通信模块', 'type': '硬件', 'importance': '高', 'description': '负责车辆与外部网络的通信'}, {'id': 'A003', 'name': '车辆操作系统', 'type': '软件', 'importance': '高', 'description': '车辆的基础操作系统，管理各个子系统'}], 'threats': [{'id': 'T001', 'name': '篡改: 车载中控系统', 'asset_id': 'A001', 'type': '篡改', 'likelihood': '中', 'description': '针对车载中控系统的篡改威胁'}, {'id': 'T002', 'name': '篡改: 车联网通信模块', 'asset_id': 'A002', 'type': '篡改', 'likelihood': '中', 'description': '针对车联网通信模块的篡改威胁'}, {'id': 'T003', 'name': '权限提升: 车辆操作系统', 'asset_id': 'A003', 'type': '权限提升', 'likelihood': '中', 'description': '针对车辆操作系统的权限提升威胁'}], 'risks': [{'id': 'R001', 'threat_id': 'T001', 'asset_id': 'A001', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车载中控系统 对资产的影响'}, {'id': 'R002', 'threat_id': 'T002', 'asset_id': 'A002', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：篡改: 车联网通信模块 对资产的影响'}, {'id': 'R003', 'threat_id': 'T003', 'asset_id': 'A003', 'likelihood': '中', 'impact': '高', 'risk_level': '高', 'description': '风险：权限提升: 车辆操作系统 对资产的影响'}], 'countermeasures': [{'id': 'M001', 'risk_id': 'R001', 'name': '技术措施 1', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M002', 'risk_id': 'R001', 'name': '管理措施 2', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M003', 'risk_id': 'R001', 'name': '监控措施 3', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M004', 'risk_id': 'R002', 'name': '技术措施 4', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M005', 'risk_id': 'R002', 'name': '管理措施 5', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M006', 'risk_id': 'R002', 'name': '监控措施 6', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}, {'id': 'M007', 'risk_id': 'R003', 'name': '技术措施 7', 'type': '技术', 'priority': '高', 'description': '实施强技术控制措施，包括加密、访问控制和安全监控'}, {'id': 'M008', 'risk_id': 'R003', 'name': '管理措施 8', 'type': '管理', 'priority': '高', 'description': '制定详细的安全策略和流程，定期审计和合规检查'}, {'id': 'M009', 'risk_id': 'R003', 'name': '监控措施 9', 'type': '监控', 'priority': '高', 'description': '实施全面的实时监控和报警系统，定期安全评估'}]}",
-        "flow": {
-          "id": "4d16a35f-36a3-4a94-b83c-fd9591f07c3e",
-          "status": "COMPLETED",
-          "current_step": null,
-          "progress": 100,
-          "error": null
-        }
-      }
+      "error": "任务执行超时"
     }
   },
   "summary": {
     "total_tests": 4,
     "successful_tests": 0,
     "success_rate": "0.00%",
-    "duration_seconds": 403.596854
+    "duration_seconds": 2450.99837
   }
 }
