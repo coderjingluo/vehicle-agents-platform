@@ -754,11 +754,12 @@ class ToolCallAgent(ReActAgent):
                     result = json.dumps(result, ensure_ascii=False)
                 
                 # 评估结果并可能进行重试或使用替代工具
-                processed_result = await self.handle_tool_result(name, args, result, tool_call_id)
+                logger.info("评估工具 {} 的结果".format(name))
+                processed_result = await self.handle_tool_result(name, function_args, result, tool_call_id)
                 
                 # 检查是否需要处理特殊工具
                 if self._is_special_tool(name):
-                    await self._handle_special_tool(name, processed_result, **args)
+                    await self._handle_special_tool(name, processed_result, **function_args)
                     
                 # 更新工具使用记录
                 self.update_memory(
@@ -1532,7 +1533,7 @@ class ToolCallAgent(ReActAgent):
         return final_result 
 
     async def evaluate_tool_result(self, tool_name: str, args: Dict[str, Any], result: str) -> Dict[str, Any]:
-        """评估工具调用结果是否符合期望，并提供后续处理建议
+        """使用大模型评估工具调用结果是否符合期望，并提供后续处理建议
         
         Args:
             tool_name: 工具名称
@@ -1546,6 +1547,98 @@ class ToolCallAgent(ReActAgent):
             - retry: 是否需要重试
             - alternative_tool: 建议使用的替代工具
             - alternative_args: 建议的替代参数
+        """
+        # 默认评估结果
+        default_evaluation = {
+            "success": True,
+            "reason": "结果符合预期",
+            "retry": False,
+            "alternative_tool": None,
+            "alternative_args": {}
+        }
+        
+        # 使用大模型评估结果
+        try:
+            # 构建评估提示
+            eval_prompt = f"""
+            请评估以下工具调用结果是否符合预期，并提供后续处理建议：
+            
+            工具名称: {tool_name}
+            工具参数: {json.dumps(args, ensure_ascii=False)}
+            执行结果: {result}
+            
+            请分析该结果是否满足以下条件：
+            1. 结果是否包含有效信息（不是空结果、错误信息或无关信息）
+            2. 结果是否解决了通过该工具想要达成的目标
+            3. 是否需要重试或使用其他工具获取更好的结果
+            
+            请以JSON格式回答，包含以下字段：
+            {{
+                "success": true/false,  // 是否成功获取有效结果
+                "reason": "评估理由",    // 成功或失败的具体原因
+                "retry": true/false,    // 是否需要重试
+                "alternative_tool": "替代工具名称或null",  // 建议使用的替代工具
+                "alternative_args": {{}}  // 建议的替代参数
+            }}
+            
+            只返回JSON格式的评估结果，不要包含其他内容。
+            """
+            
+            # 调用LLM进行评估
+            if hasattr(self, 'llm') and self.llm:
+                logger.info(f"使用大模型评估工具 {tool_name} 的结果")
+                eval_response = await self.llm.ask(
+                    messages=[{"role": "user", "content": eval_prompt}],
+                    temperature=0.1  # 低温度以获得更确定的回答
+                )
+                
+                # 提取JSON结果
+                try:
+                    # 尝试找到JSON部分
+                    import re
+                    json_match = re.search(r'\{[\s\S]*\}', eval_response)
+                    if json_match:
+                        eval_json = json_match.group(0)
+                        evaluation = json.loads(eval_json)
+                        
+                        # 验证必要字段
+                        required_fields = ["success", "reason", "retry"]
+                        if all(field in evaluation for field in required_fields):
+                            logger.info(f"大模型评估结果: {evaluation}")
+                            
+                            # 确保alternative_args是字典类型
+                            if "alternative_args" in evaluation and evaluation["alternative_args"] is None:
+                                evaluation["alternative_args"] = {}
+                                
+                            return evaluation
+                        else:
+                            logger.warning(f"大模型评估结果缺少必要字段: {evaluation}")
+                    else:
+                        logger.warning(f"无法从大模型响应中提取JSON: {eval_response}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"解析大模型评估结果失败: {str(e)}")
+                except Exception as e:
+                    logger.error(f"处理大模型评估结果时出错: {str(e)}")
+            
+            # 如果大模型评估失败，使用基于规则的评估作为备选
+            logger.info(f"使用基于规则的方法评估工具 {tool_name} 的结果")
+            return self._rule_based_evaluate_tool_result(tool_name, args, result)
+                
+        except Exception as e:
+            logger.error(f"使用大模型评估工具结果时出错: {str(e)}")
+            # 如果评估过程出错，使用基于规则的评估
+            return self._rule_based_evaluate_tool_result(tool_name, args, result)
+    
+    def _rule_based_evaluate_tool_result(self, tool_name: str, args: Dict[str, Any], result: str) -> Dict[str, Any]:
+        """基于规则的工具调用结果评估（作为大模型评估的备选方案）
+        
+        Args:
+            tool_name: 工具名称
+            args: 工具参数
+            result: 工具执行结果
+            
+        Returns:
+            评估结果字典
         """
         # 默认评估结果
         evaluation = {
@@ -1586,7 +1679,7 @@ class ToolCallAgent(ReActAgent):
         # 针对特定工具的结果评估
         if tool_name == "web_search":
             # 检查搜索结果是否有效
-            if "找不到相关结果" in result or "No results found" in result:
+            if "找不到相关结果" in result or "No results found" in result or "未找到搜索结果" in result:
                 evaluation["success"] = False
                 evaluation["reason"] = "搜索未返回有效结果"
                 evaluation["retry"] = True
@@ -1732,6 +1825,7 @@ class ToolCallAgent(ReActAgent):
             最终处理后的结果
         """
         # 评估结果
+        logger.info(f"开始评估工具 {tool_name} 的执行结果")
         evaluation = await self.evaluate_tool_result(tool_name, args, result)
         
         # 记录评估结果
@@ -1739,38 +1833,50 @@ class ToolCallAgent(ReActAgent):
         
         # 如果结果符合预期，直接返回
         if evaluation["success"] and not evaluation["retry"]:
+            logger.info(f"工具 {tool_name} 结果符合预期，无需进一步处理")
             return result
+        
+        # 记录评估失败的原因
+        if not evaluation["success"]:
+            logger.info(f"工具 {tool_name} 结果不符合预期: {evaluation['reason']}")
         
         # 如果需要使用替代工具
         if evaluation["alternative_tool"]:
-            logger.info(f"使用替代工具 {evaluation['alternative_tool']} 处理 {tool_name} 的结果")
+            alt_tool_name = evaluation["alternative_tool"]
+            logger.info(f"使用替代工具 {alt_tool_name} 处理 {tool_name} 的结果")
             
             # 执行替代工具
             alt_tool = None
             if hasattr(self, 'available_tools'):
                 if hasattr(self.available_tools, 'get_tool'):
-                    alt_tool = self.available_tools.get_tool(evaluation["alternative_tool"])
+                    alt_tool = self.available_tools.get_tool(alt_tool_name)
                 elif hasattr(self.available_tools, 'tools'):
-                    alt_tool = next((t for t in self.available_tools.tools if getattr(t, 'name', '') == evaluation["alternative_tool"]), None)
+                    alt_tool = next((t for t in self.available_tools.tools if getattr(t, 'name', '') == alt_tool_name), None)
             
             if alt_tool:
                 try:
+                    # 记录替代工具的参数
+                    alt_args = evaluation["alternative_args"]
+                    logger.info(f"执行替代工具 {alt_tool_name}，参数: {alt_args}")
+                    
                     # 执行替代工具
-                    alt_result = await alt_tool.execute(**evaluation["alternative_args"]) if asyncio.iscoroutinefunction(alt_tool.execute) else alt_tool.execute(**evaluation["alternative_args"])
+                    alt_result = await alt_tool.execute(**alt_args) if asyncio.iscoroutinefunction(alt_tool.execute) else alt_tool.execute(**alt_args)
                     
                     # 检查结果是否是协程对象，如果是则等待其完成
                     if asyncio.iscoroutine(alt_result):
-                        logger.info(f"替代工具 {evaluation['alternative_tool']} 返回了协程对象，等待其完成...")
+                        logger.info(f"替代工具 {alt_tool_name} 返回了协程对象，等待其完成...")
                         alt_result = await alt_result
                     
                     # 更新内存
                     alt_result_str = str(alt_result)
-                    self.update_memory("tool", alt_result_str, tool_call_id=f"{tool_call_id}_alt")
+                    self.update_memory("tool", alt_result_str, tool_call_id=f"{tool_call_id}_alt", name=alt_tool_name)
+                    logger.info(f"替代工具 {alt_tool_name} 执行结果: {alt_result_str[:100]}...")
                     
                     # 如果是获取路径后重试文件操作
-                    if tool_name == "file_operators" and evaluation["alternative_tool"] == "bash" and args.get("operation") == "list":
+                    if tool_name == "file_operators" and alt_tool_name == "bash" and args.get("operation") == "list":
                         # 提取当前路径
                         current_path = alt_result_str.strip().split("\n")[0] if "\n" in alt_result_str else alt_result_str.strip()
+                        logger.info(f"从bash命令获取当前路径: {current_path}")
                         
                         # 重新执行file_operators
                         logger.info(f"使用获取的路径 {current_path} 重试 file_operators")
@@ -1779,6 +1885,8 @@ class ToolCallAgent(ReActAgent):
                         if file_tool:
                             retry_args = args.copy()
                             retry_args["path"] = current_path
+                            logger.info(f"重试 file_operators，参数: {retry_args}")
+                            
                             retry_result = await file_tool.execute(**retry_args)
                             
                             # 检查结果是否是协程对象
@@ -1787,16 +1895,33 @@ class ToolCallAgent(ReActAgent):
                                 
                             # 更新内存
                             retry_result_str = str(retry_result)
-                            self.update_memory("tool", retry_result_str, tool_call_id=f"{tool_call_id}_retry")
+                            self.update_memory("tool", retry_result_str, tool_call_id=f"{tool_call_id}_retry", name=tool_name)
+                            logger.info(f"重试 file_operators 结果: {retry_result_str[:100]}...")
                             
                             # 返回组合结果
-                            return f"原始结果: {result}\n\n执行 {evaluation['alternative_tool']}: {alt_result_str}\n\n重试 {tool_name}: {retry_result_str}"
+                            combined_result = f"原始结果: {result}\n\n执行 {alt_tool_name}: {alt_result_str}\n\n重试 {tool_name}: {retry_result_str}"
+                            logger.info(f"返回组合结果")
+                            return combined_result
+                    
+                    # 如果是浏览器访问网页获取内容
+                    elif tool_name == "web_search" and alt_tool_name == "browser_use":
+                        logger.info(f"使用浏览器访问搜索结果中的链接获取详细内容")
+                        
+                        # 返回组合结果
+                        combined_result = f"搜索结果: {result}\n\n网页内容: {alt_result_str}"
+                        logger.info(f"返回组合结果")
+                        return combined_result
                     
                     # 返回组合结果
-                    return f"原始结果: {result}\n\n执行 {evaluation['alternative_tool']}: {alt_result_str}"
+                    combined_result = f"原始结果: {result}\n\n执行 {alt_tool_name}: {alt_result_str}"
+                    logger.info(f"返回组合结果")
+                    return combined_result
                 except Exception as e:
-                    logger.error(f"执行替代工具 {evaluation['alternative_tool']} 时出错: {str(e)}")
-                    return f"原始结果: {result}\n\n尝试使用替代工具 {evaluation['alternative_tool']} 时出错: {str(e)}"
+                    error_msg = f"执行替代工具 {alt_tool_name} 时出错: {str(e)}"
+                    logger.error(error_msg, exc_info=True)
+                    return f"原始结果: {result}\n\n尝试使用替代工具 {alt_tool_name} 时出错: {str(e)}"
+            else:
+                logger.warning(f"找不到替代工具: {alt_tool_name}")
         
         # 如果需要重试但没有替代工具
         if evaluation["retry"] and not evaluation["alternative_tool"]:
@@ -1817,6 +1942,8 @@ class ToolCallAgent(ReActAgent):
                     if evaluation["alternative_args"]:
                         retry_args.update(evaluation["alternative_args"])
                     
+                    logger.info(f"重试工具 {tool_name}，参数: {retry_args}")
+                    
                     # 执行重试
                     retry_result = await retry_tool.execute(**retry_args) if asyncio.iscoroutinefunction(retry_tool.execute) else retry_tool.execute(**retry_args)
                     
@@ -1826,13 +1953,20 @@ class ToolCallAgent(ReActAgent):
                     
                     # 更新内存
                     retry_result_str = str(retry_result)
-                    self.update_memory("tool", retry_result_str, tool_call_id=f"{tool_call_id}_retry")
+                    self.update_memory("tool", retry_result_str, tool_call_id=f"{tool_call_id}_retry", name=tool_name)
+                    logger.info(f"重试 {tool_name} 结果: {retry_result_str[:100]}...")
                     
                     # 返回组合结果
-                    return f"原始结果: {result}\n\n重试 {tool_name}: {retry_result_str}"
+                    combined_result = f"原始结果: {result}\n\n重试 {tool_name}: {retry_result_str}"
+                    logger.info(f"返回组合结果")
+                    return combined_result
                 except Exception as e:
-                    logger.error(f"重试工具 {tool_name} 时出错: {str(e)}")
+                    error_msg = f"重试工具 {tool_name} 时出错: {str(e)}"
+                    logger.error(error_msg, exc_info=True)
                     return f"原始结果: {result}\n\n尝试重试时出错: {str(e)}"
+            else:
+                logger.warning(f"找不到工具 {tool_name} 进行重试")
         
         # 默认返回原始结果
-        return result 
+        logger.info(f"没有执行重试或使用替代工具，返回原始结果")
+        return result
