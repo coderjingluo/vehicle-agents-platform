@@ -1177,13 +1177,8 @@ class ToolCallAgent(ReActAgent):
                 
                 # 思考
                 should_continue = await self.think()
-                logger.info(f"should_continue: {should_continue}")
                 if not should_continue:
                     break
-                
-                logger.info(f"执行智能体")
-                logger.info(f"self.current_step: {self.current_step}")
-                logger.info(f"self.state: {self.__class__.__name__}")
                 # 执行
                 await self.act()
             
@@ -1866,6 +1861,14 @@ class ToolCallAgent(ReActAgent):
                     if asyncio.iscoroutine(alt_result):
                         logger.info(f"替代工具 {alt_tool_name} 返回了协程对象，等待其完成...")
                         alt_result = await alt_result
+                    
+                    # 评估替代工具的结果，如果结果不符合预期，则继续重试
+                    alt_evaluation = await self.evaluate_tool_result(alt_tool_name, alt_args, alt_result)
+                    if not alt_evaluation["success"] and alt_evaluation["retry"]:
+                        logger.info(f"替代工具 {alt_tool_name} 结果不符合预期，继续重试")
+                        return await self.handle_tool_result(alt_tool_name, alt_args, alt_result, tool_call_id)
+                    elif not alt_evaluation["success"]:
+                        logger.info(f"替代工具 {alt_tool_name} 结果不符合预期，返回原始结果")
                     
                     # 更新内存
                     alt_result_str = str(alt_result)

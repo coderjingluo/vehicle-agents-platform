@@ -12,7 +12,7 @@ from enum import Enum
 from datetime import datetime
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint import MemorySaver
+from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.runnables import Runnable, RunnableLambda
 
 from app.core.logging import logger

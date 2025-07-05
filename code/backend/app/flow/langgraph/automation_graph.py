@@ -9,7 +9,7 @@ from typing import TypedDict, List, Dict, Any, Optional, Literal, Annotated, Uni
 from enum import Enum
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint import MemorySaver
+from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.runnables import Runnable, RunnableLambda
 
 from app.core.logging import logger

@@ -11,6 +11,13 @@ from datetime import datetime
 from app.agent.toolcall import ToolCallAgent, ToolCollection, ToolCall
 from app.tool.base import BaseTool, ToolResult
 from app.tool.create_chat_completion import CreateChatCompletionTool
+from app.tool.ask_human import AskHumanTool
+from app.tool.python_execute import PythonExecuteTool
+from app.tool.test_executor import TestExecutorTool
+from app.tool.test_case_generator import TestCaseGeneratorTool
+from app.tool.code_generator import CodeGeneratorTool
+from app.tool.bash import BashTool
+from app.tool.str_replace_editor import StrReplaceEditorTool
 from app.tool.terminate import TerminateTool
 from app.tool.planning import PlanningTool
 from app.tool.web_search import WebSearchTool
@@ -73,11 +80,18 @@ class TaraAgent(ToolCallAgent):
         PlanningTool(),
         WebSearchTool(),
         BrowserUseTool(),
-        
+        CodeGeneratorTool(),
+        BashTool(),
+        StrReplaceEditorTool(),
+        FileOperatorTool(),
+        AskHumanTool(),
+        PythonExecuteTool(),
         # 专业工具
         TaraAnalysisTool(),
         RAGQueryTool(),
-        FileOperatorTool(),
+        TestExecutorTool(),
+        TestCaseGeneratorTool(),
+        
     ))
     
     # TARA特定属性
@@ -180,7 +194,7 @@ class TaraAgent(ToolCallAgent):
         5. 攻击树构建
         6. 风险评估 (基于影响和可能性)
         7. 缓解措施构建
-        8. 安全需求构建
+        8. 安全需求与安全目标构建
         9. 验证测试方案建议
         
         # 规划格式
@@ -502,7 +516,6 @@ class TaraAgent(ToolCallAgent):
             self.next_step_prompt = (
                 await self.browser_context_helper.format_next_step_prompt()
             )
-        logger.info(f"taraagent {super().__class__.__name__}")
 
         try:
             result = await super().think()
